@@ -103,6 +103,8 @@ TCC-E-Shop-FITO/
 ├── src/               # Frontend (React + Vite)
 │   ├── App.jsx
 │   └── ...
+├── images_site_list/    # Contém 'link_images.txt' com todas as imagens usadas no site
+├── images_site_preview/ # Contém imagens de preview de todas as páginas do site
 │
 ├── index.js           # Script para iniciar backend + frontend
 ├── package.json
@@ -114,5 +116,3 @@ TCC-E-Shop-FITO/
 
 ## 📝 Licença
 Projeto acadêmico. Uso livre para fins educacionais.
-
----
