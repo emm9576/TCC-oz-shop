@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const ProdutoSchema = new mongoose.Schema({
-    id: { type: String, unique: true }, // Removido required, será gerado automaticamente
+    id: { type: String, unique: true, required: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, required: true },
     category: { type: String, required: true, trim: true },
@@ -16,6 +16,16 @@ const ProdutoSchema = new mongoose.Schema({
     images: { type: [String], default: [] },
     features: { type: [String], default: [] },
     createdAt: { type: Date, default: Date.now }
+});
+
+// Middleware para gerar ID sequencial
+ProdutoSchema.pre('save', async function(next) {
+    if (this.isNew && !this.id) {
+        const lastProduto = await this.constructor.findOne().sort({ id: -1 });
+        const nextId = lastProduto ? parseInt(lastProduto.id) + 1 : 1001;
+        this.id = nextId.toString();
+    }
+    next();
 });
 
 const Produto = mongoose.model('Produto', ProdutoSchema);
