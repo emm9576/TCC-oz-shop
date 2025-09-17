@@ -219,7 +219,6 @@ router.delete('/delete-account', async (req, res) => {
       $unset: {
         name: "",
         password: "",
-        email: "",
         phone: "",
         estado: "",
         cidade: "",

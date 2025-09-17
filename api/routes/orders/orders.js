@@ -64,7 +64,14 @@ router.get('/:id', async (req, res) => {
 // GET - Buscar pedidos por usuário
 router.get('/user/:userId', async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.params.userId })
+    // Primeiro, buscar o usuário pelo ID customizado para obter o ObjectId
+    const user = await User.findOne({ id: req.params.userId });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
+
+    // Usar o ObjectId do usuário para buscar os pedidos
+    const orders = await Order.find({ user: user._id })
       .populate({
         path: 'products',
         model: 'Produto'
