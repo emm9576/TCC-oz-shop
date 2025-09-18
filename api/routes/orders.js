@@ -1,12 +1,13 @@
 import express from 'express';
-import User from '../../../models/user.js';
-import Produto from '../../../models/produto.js';
-import Order from '../../../models/order.js';
+import User from '../../models/user.js';
+import Produto from '../../models/produto.js';
+import Order from '../../models/order.js';
+import { authenticateToken, requireAdmin, requireOwnerOrAdmin } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-// GET - Buscar todos os pedidos
-router.get('/', async (req, res) => {
+// GET - Buscar todos os pedidos (apenas admin)
+router.get('/', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { status, userId, page = 1, limit = 10 } = req.query;
     
@@ -41,8 +42,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET - Buscar pedido por ID
-router.get('/:id', async (req, res) => {
+// GET - Buscar pedido por ID (admin ou dono do pedido)
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const order = await Order.findOne({ id: req.params.id })
       .populate('user', '-password')
@@ -54,6 +55,14 @@ router.get('/:id', async (req, res) => {
     if (!order) {
       return res.status(404).json({ success: false, message: 'Pedido não encontrado' });
     }
+
+    // Verificar se é admin ou dono do pedido
+    if (req.user.role !== 'admin' && order.user.id !== req.user.id) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Acesso negado: você só pode ver seus próprios pedidos' 
+      });
+    }
     
     res.json({ success: true, data: order });
   } catch (error) {
@@ -61,8 +70,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// GET - Buscar pedidos por usuário
-router.get('/user/:userId', async (req, res) => {
+// GET - Buscar pedidos por usuário (admin ou próprio usuário)
+router.get('/user/:userId', authenticateToken, requireOwnerOrAdmin('userId'), async (req, res) => {
   try {
     // Primeiro, buscar o usuário pelo ID customizado para obter o ObjectId
     const user = await User.findOne({ id: req.params.userId });
@@ -84,8 +93,8 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-// PUT - Atualizar pedido (apenas para admin - não permite modificar user/products/total)
-router.put('/:id', async (req, res) => {
+// PUT - Atualizar pedido (apenas admin)
+router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
 
@@ -110,8 +119,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// PATCH - Atualizar apenas status do pedido
-router.patch('/:id/status', async (req, res) => {
+// PATCH - Atualizar apenas status do pedido (apenas admin)
+router.patch('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
 
@@ -136,8 +145,8 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// DELETE - Soft delete pedido
-router.delete('/:id', async (req, res) => {
+// DELETE - Soft delete pedido (apenas admin)
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const updates = {
       $set: { deleted: true },
@@ -167,8 +176,8 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// GET - Buscar pedidos por status
-router.get('/status/:status', async (req, res) => {
+// GET - Buscar pedidos por status (apenas admin)
+router.get('/status/:status', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const orders = await Order.find({ status: req.params.status })
       .populate('user', '-password')

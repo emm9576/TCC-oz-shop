@@ -1,5 +1,6 @@
 import express from 'express';
-import User from '../../../models/user.js';
+import User from '../../models/user.js';
+import { generateToken, authenticateToken } from '../middlewares/auth.js';
 
 const router = express.Router();
 
@@ -156,14 +157,16 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Login bem-sucedido - retornar dados do usuário sem senha
+    // Login bem-sucedido - gerar token e retornar dados
+    const token = generateToken(user);
     const userResponse = { ...user.toObject() };
     delete userResponse.password;
     
     res.json({ 
       success: true, 
       message: 'Login realizado com sucesso!', 
-      data: userResponse 
+      data: userResponse,
+      token: token
     });
 
   } catch (error) {
@@ -175,29 +178,24 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// DELETE - Deletar conta
-router.delete('/delete-account', async (req, res) => {
+// DELETE - Deletar conta (requer autenticação)
+router.delete('/delete-account', authenticateToken, async (req, res) => {
   try {
-    // Verificar se o body existe
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email e senha são obrigatórios para deletar a conta' 
-      });
-    }
-
-    const { email, password } = req.body;
+    const { password } = req.body;
     
-    // Validar campos obrigatórios
-    if (!email || !password) {
+    // Validar senha obrigatória
+    if (!password || password.trim() === '') {
       return res.status(400).json({ 
         success: false, 
-        message: 'Email e senha são obrigatórios para confirmar exclusão' 
+        message: 'Senha é obrigatória para confirmar exclusão' 
       });
     }
 
-    // Buscar usuário por email (incluindo senha para verificação)
-    const user = await User.findOne({ email }).select('+password');
+    // Buscar usuário atual com senha para verificação
+    const user = await User.findOne({ 
+      id: req.user.id 
+    }).select('+password');
+
     if (!user) {
       return res.status(404).json({ 
         success: false, 
@@ -206,7 +204,7 @@ router.delete('/delete-account', async (req, res) => {
     }
 
     // Verificar senha
-    if (user.password !== password) {
+    if (user.password !== password.trim()) {
       return res.status(401).json({ 
         success: false, 
         message: 'Senha incorreta' 
@@ -215,7 +213,10 @@ router.delete('/delete-account', async (req, res) => {
 
     // Realizar soft delete
     const updates = {
-      $set: { deleted: true },
+      $set: { 
+        deleted: true,
+        email: `deleted_${Date.now()}_${user.email}` // Evitar conflito de email único
+      },
       $unset: {
         name: "",
         password: "",
@@ -227,11 +228,7 @@ router.delete('/delete-account', async (req, res) => {
       }
     };
 
-    const deletedUser = await User.findByIdAndUpdate(
-      user._id,
-      updates,
-      { new: true }
-    );
+    await User.findByIdAndUpdate(user._id, updates, { new: true });
 
     res.json({ 
       success: true, 

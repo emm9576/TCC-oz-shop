@@ -14,6 +14,12 @@ const UserSchema = new mongoose.Schema({
     cidade: { type: String, required: false },
     rua: { type: String, required: false },
     cep: { type: String, required: false },
+    role: { 
+        type: String, 
+        enum: ['user', 'admin'], 
+        default: 'user',
+        required: true 
+    },
     createdAt: { type: Date, default: Date.now },
 
     // campo auxiliar para soft delete
@@ -69,7 +75,6 @@ UserSchema.pre('deleteOne', { document: true, query: false }, async function(nex
                 $set: {
                     name: null,
                     password: null,
-                    email: null,
                     phone: null,
                     estado: null,
                     cidade: null,

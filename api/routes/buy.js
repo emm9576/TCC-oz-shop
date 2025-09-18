@@ -1,34 +1,21 @@
 import express from 'express';
-import User from '../../../models/user.js';
-import Produto from '../../../models/produto.js';
-import Order from '../../../models/order.js';
+import User from '../../models/user.js';
+import Produto from '../../models/produto.js';
+import Order from '../../models/order.js';
+import { authenticateToken } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-// POST - Comprar produto
-router.post('/:productId', async (req, res) => {
+// POST - Comprar produto (requer autenticação)
+router.post('/:productId', authenticateToken, async (req, res) => {
   try {
     const { productId } = req.params;
-    
-    // Verificar se o body existe
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Corpo da requisição é obrigatório. Envie { "userId": "ID_DO_USUARIO" }' 
-      });
-    }
+    const { quantity = 1 } = req.body || {};
 
-    const { userId, quantity = 1 } = req.body;
+    // Usar dados do usuário autenticado
+    const userId = req.user.id;
 
-    // Validar campos obrigatórios
-    if (!userId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'ID do usuário é obrigatório no corpo da requisição' 
-      });
-    }
-
-    // Verificar se usuário existe
+    // Verificar se usuário existe (já verificado pelo middleware, mas mantendo para segurança)
     const user = await User.findOne({ id: userId });
     if (!user) {
       return res.status(404).json({ 
@@ -58,9 +45,9 @@ router.post('/:productId', async (req, res) => {
     const pricePerUnit = produto.price * (1 - produto.discount / 100);
     const total = pricePerUnit * quantity;
 
-    // Criar o pedido
+    // Criar o pedido usando o ObjectId do usuário autenticado
     const newOrder = new Order({
-      user: user._id,
+      user: req.user._id,
       products: [produto._id],
       date: new Date().toLocaleDateString('pt-BR'),
       total: Number(total.toFixed(2)),
@@ -80,7 +67,10 @@ router.post('/:productId', async (req, res) => {
     // Popular os dados para retorno
     const populatedOrder = await Order.findById(newOrder._id)
       .populate('user', '-password')
-      .populate('products');
+      .populate({
+        path: 'products',
+        model: 'Produto'
+      });
 
     res.status(201).json({ 
       success: true, 
