@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../../models/user.js';
 
 // Chave secreta para assinar JWT - em produção use variável de ambiente
-const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_super_forte_aqui';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware para verificar se usuário está autenticado
 export const authenticateToken = async (req, res, next) => {
