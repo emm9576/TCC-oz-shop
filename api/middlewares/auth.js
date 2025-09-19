@@ -1,10 +1,14 @@
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 import User from '../../models/user.js';
 
-// Chave secreta para assinar JWT - em produção use variável de ambiente
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Chave secreta para assinar JWT
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Middleware para verificar se usuário está autenticado
+// Middleware para verificar se usuário está autenticado com auto-renovação
 export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -17,47 +21,86 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verificar e decodificar o token
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Buscar usuário no banco para verificar se ainda existe e está ativo
-    const user = await User.findOne({ 
-      id: decoded.userId, 
-      deleted: { $ne: true } 
-    }).select('-password');
+    // Tentar verificar o token atual
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      
+      // Buscar usuário no banco
+      const user = await User.findOne({ 
+        id: decoded.userId, 
+        deleted: { $ne: true } 
+      }).select('-password');
 
-    if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Usuário não encontrado ou desativado' 
-      });
+      if (!user) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Usuário não encontrado ou desativado' 
+        });
+      }
+
+      // Token válido - adicionar dados do usuário à requisição
+      req.user = {
+        id: user.id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      };
+
+      return next();
+
+    } catch (tokenError) {
+      // Token expirado ou inválido - tentar renovar
+      if (tokenError.name === 'TokenExpiredError' || tokenError.name === 'JsonWebTokenError') {
+        
+        // Decodificar token sem verificar (para pegar userId)
+        const decodedToken = jwt.decode(token);
+        
+        if (!decodedToken || !decodedToken.userId) {
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Token inválido' 
+          });
+        }
+
+        // Buscar usuário e verificar refresh token
+        const user = await User.findOne({ 
+          id: decodedToken.userId, 
+          deleted: { $ne: true },
+          refreshToken: { $ne: null }
+        }).select('-password');
+
+        if (!user || !user.refreshToken) {
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Sessão expirada. Faça login novamente' 
+          });
+        }
+
+        // Gerar novo access token
+        const newAccessToken = generateAccessToken(user);
+
+        // Adicionar novo token ao header da resposta
+        res.set('X-New-Token', newAccessToken);
+
+        // Adicionar dados do usuário à requisição
+        req.user = {
+          id: user.id,
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        };
+
+        console.log(`🔄 Token renovado automaticamente para usuário ${user.id}`);
+        return next();
+
+      } else {
+        throw tokenError; // Re-throw se for outro tipo de erro
+      }
     }
 
-    // Adicionar dados do usuário à requisição
-    req.user = {
-      id: user.id,
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role
-    };
-
-    next();
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Token expirado' 
-      });
-    }
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Token inválido' 
-      });
-    }
-
     return res.status(500).json({ 
       success: false, 
       message: 'Erro interno do servidor', 
@@ -94,8 +137,8 @@ export const requireOwnerOrAdmin = (userIdParam = 'userId') => {
   };
 };
 
-// Função para gerar JWT token
-export const generateToken = (user) => {
+// Função para gerar access token (1 dia)
+export const generateAccessToken = (user) => {
   return jwt.sign(
     { 
       userId: user.id,
@@ -103,7 +146,41 @@ export const generateToken = (user) => {
       role: user.role 
     },
     JWT_SECRET,
-    { expiresIn: '24h' }
+    { expiresIn: '1d' }
+  );
+};
+
+// Função para gerar refresh token permanente (UUID)
+export const generateRefreshToken = () => {
+  return uuidv4();
+};
+
+// Função para fazer login completo
+export const loginUser = async (user) => {
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken();
+
+  // Salvar refresh token no banco
+  await User.findByIdAndUpdate(user._id, { 
+    refreshToken: refreshToken 
+  });
+
+  return {
+    accessToken,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  };
+};
+
+// Função para logout (revogar refresh token)
+export const logoutUser = async (userId) => {
+  await User.findOneAndUpdate(
+    { id: userId }, 
+    { refreshToken: null }
   );
 };
 

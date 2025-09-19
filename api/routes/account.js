@@ -1,6 +1,6 @@
 import express from 'express';
 import User from '../../models/user.js';
-import { generateToken, authenticateToken } from '../middlewares/auth.js';
+import { loginUser, logoutUser, authenticateToken } from '../middlewares/auth.js';
 
 const router = express.Router();
 
@@ -157,16 +157,14 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Login bem-sucedido - gerar token e retornar dados
-    const token = generateToken(user);
-    const userResponse = { ...user.toObject() };
-    delete userResponse.password;
+    // Login bem-sucedido - usar sistema completo de login
+    const loginResult = await loginUser(user);
     
     res.json({ 
       success: true, 
       message: 'Login realizado com sucesso!', 
-      data: userResponse,
-      token: token
+      data: loginResult.user,
+      token: loginResult.accessToken
     });
 
   } catch (error) {
@@ -235,6 +233,24 @@ router.delete('/delete-account', authenticateToken, async (req, res) => {
       message: 'Conta deletada com sucesso!' 
     });
 
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro interno do servidor', 
+      error: error.message 
+    });
+  }
+});
+
+// POST - Logout (revogar refresh token)
+router.post('/logout', authenticateToken, async (req, res) => {
+  try {
+    await logoutUser(req.user.id);
+    
+    res.json({ 
+      success: true, 
+      message: 'Logout realizado com sucesso!' 
+    });
   } catch (error) {
     res.status(500).json({ 
       success: false, 

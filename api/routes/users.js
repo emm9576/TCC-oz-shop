@@ -1,10 +1,11 @@
+import { authenticateToken } from '../middlewares/auth.js';
 import express from 'express';
 import User from '../../models/user.js';
 
 const router = express.Router();
 
 // GET - Buscar todos os usuários (apenas para admin)
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const users = await User.find().select('-password'); // Não retorna a senha
     res.json({ success: true, data: users });
@@ -13,7 +14,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET - Buscar usuário por ID (apenas para admin)
+// GET - Buscar usuário por ID
 router.get('/:id', async (req, res) => {
   try {
     const user = await User.findOne({ id: req.params.id }).select('-password');
@@ -27,7 +28,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT - Atualizar usuário (apenas para admin)
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { name, email, phone, estado, cidade, rua, cep } = req.body;
     
@@ -48,7 +49,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE - Deletar usuário (soft delete - apenas para admin)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const updates = {
       $set: { deleted: true },

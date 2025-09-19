@@ -20,6 +20,12 @@ const UserSchema = new mongoose.Schema({
         default: 'user',
         required: true 
     },
+    refreshToken: {
+        type: String,
+        default: null,
+        unique: true,
+        sparse: true // permite múltiplos null values
+    },
     createdAt: { type: Date, default: Date.now },
 
     // campo auxiliar para soft delete
