@@ -1,6 +1,6 @@
 import express from 'express';
 import User from '../../models/user.js';
-import { loginUser, logoutUser, authenticateToken } from '../middlewares/auth.js';
+import { loginUser, logoutUser, requireLogin } from '../middlewares/auth.js';
 
 const router = express.Router();
 
@@ -177,7 +177,7 @@ router.post('/login', async (req, res) => {
 });
 
 // DELETE - Deletar conta (requer autenticação)
-router.delete('/delete-account', authenticateToken, async (req, res) => {
+router.delete('/delete-account', requireLogin, async (req, res) => {
   try {
     const { password } = req.body;
     
@@ -243,7 +243,7 @@ router.delete('/delete-account', authenticateToken, async (req, res) => {
 });
 
 // POST - Logout (revogar refresh token)
-router.post('/logout', authenticateToken, async (req, res) => {
+router.post('/logout', requireLogin, async (req, res) => {
   try {
     await logoutUser(req.user.id);
     
@@ -258,6 +258,24 @@ router.post('/logout', authenticateToken, async (req, res) => {
       error: error.message 
     });
   }
+});
+
+// Rota temporária para fazer um admin
+router.post('/make-admin', async (req, res) => {
+  const { email, secretCode } = req.body;
+  
+  // Código secreto para segurança
+  if (secretCode !== 'adeeme123') {
+    return res.status(403).json({ message: 'Código inválido' });
+  }
+  
+  const user = await User.findOneAndUpdate(
+    { email: email },
+    { role: 'admin' },
+    { new: true }
+  );
+  
+  res.json({ message: 'Usuário promovido a admin!', user });
 });
 
 export default router;

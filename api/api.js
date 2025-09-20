@@ -4,7 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 // Importar middlewares
-import { requireAdmin } from './middlewares/auth.js';
+import { requireLogin } from './middlewares/auth.js';
 
 // Importar rotas
 import usersRoutes from './routes/users.js';
@@ -32,9 +32,9 @@ mongoose.connect(process.env.MONGODB_URI)
   .catch((err) => console.error('Erro ao conectar ao MongoDB:', err));
 
 // Usar as rotas
-app.use("/api/users", requireAdmin, usersRoutes); // Rotas only admin
+app.use("/api/users", requireLogin, usersRoutes); // Rotas only admin
 app.use('/api/produtos', produtosRoutes);
-app.use('/api/orders', ordersRoutes);
+app.use('/api/orders', requireLogin, ordersRoutes);
 app.use('/api/buy', buyRoute);
 app.use('/api/account', accountRoute);
 

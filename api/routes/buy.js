@@ -2,12 +2,12 @@ import express from 'express';
 import User from '../../models/user.js';
 import Produto from '../../models/produto.js';
 import Order from '../../models/order.js';
-import { authenticateToken } from '../middlewares/auth.js';
+import { requireLogin } from '../middlewares/auth.js';
 
 const router = express.Router();
 
 // POST - Comprar produto (requer autenticação)
-router.post('/:productId', authenticateToken, async (req, res) => {
+router.post('/:productId', requireLogin, async (req, res) => {
   try {
     const { productId } = req.params;
     const { quantity = 1 } = req.body || {};

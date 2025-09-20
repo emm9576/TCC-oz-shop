@@ -1,13 +1,12 @@
 import express from 'express';
 import User from '../../models/user.js';
-import Produto from '../../models/produto.js';
 import Order from '../../models/order.js';
-import { authenticateToken, requireAdmin, requireOwnerOrAdmin } from '../middlewares/auth.js';
+import { requireAdmin, requireOwnerOrAdmin } from '../middlewares/auth.js';
 
 const router = express.Router();
 
 // GET - Buscar todos os pedidos (apenas admin)
-router.get('/', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const { status, userId, page = 1, limit = 10 } = req.query;
     
@@ -43,7 +42,7 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // GET - Buscar pedido por ID (admin ou dono do pedido)
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const order = await Order.findOne({ id: req.params.id })
       .populate('user', '-password')
@@ -71,7 +70,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // GET - Buscar pedidos por usuário (admin ou próprio usuário)
-router.get('/user/:userId', authenticateToken, requireOwnerOrAdmin('userId'), async (req, res) => {
+router.get('/user/:userId', requireOwnerOrAdmin('userId'), async (req, res) => {
   try {
     // Primeiro, buscar o usuário pelo ID customizado para obter o ObjectId
     const user = await User.findOne({ id: req.params.userId });
@@ -94,7 +93,7 @@ router.get('/user/:userId', authenticateToken, requireOwnerOrAdmin('userId'), as
 });
 
 // PUT - Atualizar pedido (apenas admin)
-router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
 
@@ -120,7 +119,7 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // PATCH - Atualizar apenas status do pedido (apenas admin)
-router.patch('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
+router.patch('/:id/status', requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
 
@@ -146,7 +145,7 @@ router.patch('/:id/status', authenticateToken, requireAdmin, async (req, res) =>
 });
 
 // DELETE - Soft delete pedido (apenas admin)
-router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const updates = {
       $set: { deleted: true },
@@ -177,7 +176,7 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // GET - Buscar pedidos por status (apenas admin)
-router.get('/status/:status', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/status/:status', requireAdmin, async (req, res) => {
   try {
     const orders = await Order.find({ status: req.params.status })
       .populate('user', '-password')

@@ -8,8 +8,8 @@ dotenv.config();
 // Chave secreta para assinar JWT
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Middleware para verificar se usuário está autenticado com auto-renovação
-export const authenticateToken = async (req, res, next) => {
+// Middleware para verificar se usuário está logado
+const requireLogin = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
@@ -110,7 +110,7 @@ export const authenticateToken = async (req, res, next) => {
 };
 
 // Middleware para verificar se usuário é admin
-export const requireAdmin = (req, res, next) => {
+const requireAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();
   } else {
@@ -122,7 +122,7 @@ export const requireAdmin = (req, res, next) => {
 };
 
 // Middleware para verificar se usuário é dono do recurso OU admin
-export const requireOwnerOrAdmin = (userIdParam = 'userId') => {
+const requireOwnerOrAdmin = (userIdParam = 'userId') => {
   return (req, res, next) => {
     const resourceUserId = req.params[userIdParam];
     
@@ -138,7 +138,7 @@ export const requireOwnerOrAdmin = (userIdParam = 'userId') => {
 };
 
 // Função para gerar access token (1 dia)
-export const generateAccessToken = (user) => {
+const generateAccessToken = (user) => {
   return jwt.sign(
     { 
       userId: user.id,
@@ -151,12 +151,12 @@ export const generateAccessToken = (user) => {
 };
 
 // Função para gerar refresh token permanente (UUID)
-export const generateRefreshToken = () => {
+const generateRefreshToken = () => {
   return uuidv4();
 };
 
 // Função para fazer login completo
-export const loginUser = async (user) => {
+const loginUser = async (user) => {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken();
 
@@ -177,7 +177,7 @@ export const loginUser = async (user) => {
 };
 
 // Função para logout (revogar refresh token)
-export const logoutUser = async (userId) => {
+const logoutUser = async (userId) => {
   await User.findOneAndUpdate(
     { id: userId }, 
     { refreshToken: null }
@@ -185,10 +185,12 @@ export const logoutUser = async (userId) => {
 };
 
 // Função para verificar token sem middleware (útil para casos específicos)
-export const verifyToken = (token) => {
+const verifyToken = (token) => {
   try {
     return jwt.verify(token, JWT_SECRET);
   } catch (error) {
     return null;
   }
 };
+
+export { requireLogin, requireAdmin, requireOwnerOrAdmin, generateAccessToken, generateRefreshToken, loginUser, logoutUser, verifyToken };
