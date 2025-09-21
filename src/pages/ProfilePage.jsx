@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -12,9 +11,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import apiService from '@/services/api';
 
 const ProfilePage = () => {
-  const { user, updateProfile, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, updateProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -22,32 +22,132 @@ const ProfilePage = () => {
     name: '',
     email: '',
     phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: ''
+    estado: '',
+    cidade: '',
+    rua: '',
+    cep: ''
   });
   
+  const [realUserData, setRealUserData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  
+  // Estados para dados da API
+  const [orders, setOrders] = useState([]);
+  const [sellingProducts, setSellingProducts] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   
   // Redirecionar se não estiver autenticado
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
-    } else if (user) {
-      // Preencher dados do perfil
-      setProfileData({
-        name: user.name || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        address: user.address || '',
-        city: user.city || '',
-        state: user.state || '',
-        zipCode: user.zipCode || ''
-      });
+      return;
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, navigate]);
+
+  // Carregar dados reais do usuário via API
+  const loadRealUserData = async () => {
+    if (!user || !localStorage.getItem('token')) {
+      // Se não tiver token, usar dados do localStorage
+      if (user) {
+        setProfileData({
+          name: user.name || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          estado: user.estado || user.state || '',
+          cidade: user.cidade || user.city || '',
+          rua: user.rua || user.address || '',
+          cep: user.cep || user.zipCode || ''
+        });
+      }
+      return;
+    }
+    
+    setLoadingProfile(true);
+    try {
+      const response = await apiService.getMe();
+      const userData = response.data || response;
+      setRealUserData(userData);
+      
+      // Preencher formulário com dados reais
+      setProfileData({
+        name: userData.name || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
+        estado: userData.estado || '',
+        cidade: userData.cidade || '',
+        rua: userData.rua || '',
+        cep: userData.cep || ''
+      });
+    } catch (error) {
+      console.error('Erro ao carregar dados do usuário:', error);
+      // Se der erro, usar dados do localStorage como fallback
+      if (user) {
+        setProfileData({
+          name: user.name || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          estado: user.estado || user.state || '',
+          cidade: user.cidade || user.city || '',
+          rua: user.rua || user.address || '',
+          cep: user.cep || user.zipCode || ''
+        });
+      }
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+  
+  // Buscar pedidos do usuário
+  const fetchUserOrders = async () => {
+    const userId = realUserData?.id || user?.id;
+    if (!userId) return;
+    
+    setLoadingOrders(true);
+    try {
+      const response = await apiService.getOrdersByUser(userId);
+      setOrders(response.data || response || []);
+    } catch (error) {
+      console.error('Erro ao buscar pedidos:', error);
+      setOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+  
+  // Buscar produtos do vendedor
+  const fetchSellerProducts = async () => {
+    const userEmail = realUserData?.email || user?.email;
+    if (!userEmail) return;
+    
+    setLoadingProducts(true);
+    try {
+      const response = await apiService.getProductsBySeller(userEmail);
+      setSellingProducts(response.data || response || []);
+    } catch (error) {
+      console.error('Erro ao buscar produtos:', error);
+      setSellingProducts([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+  
+  // Carregar dados quando o componente montar
+  useEffect(() => {
+    if (user) {
+      loadRealUserData();
+    }
+  }, [user]);
+
+  // Carregar pedidos e produtos quando os dados do usuário estiverem disponíveis
+  useEffect(() => {
+    if (realUserData || user) {
+      fetchUserOrders();
+      fetchSellerProducts();
+    }
+  }, [realUserData, user]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -57,15 +157,46 @@ const ProfilePage = () => {
     }));
   };
   
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     setIsSaving(true);
     
-    // Simulando atualização
-    setTimeout(() => {
+    try {
+      // Tentar atualizar via API usando a nova rota /me
+      if (localStorage.getItem('token')) {
+        const response = await apiService.updateMe(profileData);
+        
+        // Atualizar dados reais com a resposta da API
+        if (response.data) {
+          setRealUserData(response.data);
+        }
+      }
+      
+      // Atualizar contexto local (localStorage)
+      updateProfile(profileData);
+      
+      setIsEditing(false);
+      
+      toast({
+        title: "Perfil atualizado",
+        description: "Suas informações foram atualizadas com sucesso.",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      
+      // Se der erro na API, pelo menos atualizar localmente
       updateProfile(profileData);
       setIsEditing(false);
+      
+      toast({
+        title: "Perfil atualizado localmente",
+        description: "Suas informações foram salvas localmente.",
+        variant: "default",
+        duration: 3000,
+      });
+    } finally {
       setIsSaving(false);
-    }, 1000);
+    }
   };
   
   const handleLogout = () => {
@@ -73,51 +204,69 @@ const ProfilePage = () => {
     navigate('/');
   };
   
-  // Dados simulados de pedidos
-  const orders = [
-    {
-      id: '1001',
-      date: '15/05/2023',
-      total: 1299.99,
-      status: 'Entregue',
-      items: 3
-    },
-    {
-      id: '1002',
-      date: '28/06/2023',
-      total: 499.50,
-      status: 'Em trânsito',
-      items: 1
-    },
-    {
-      id: '1003',
-      date: '10/07/2023',
-      total: 899.90,
-      status: 'Processando',
-      items: 2
+  const formatDate = (dateString) => {
+    try {
+      return new Date(dateString).toLocaleDateString('pt-BR');
+    } catch {
+      return 'N/A';
     }
-  ];
+  };
   
-  // Dados simulados de produtos vendidos
-  const sellingProducts = [
-    {
-      id: '2001',
-      name: 'Smartphone XYZ',
-      price: 1499.99,
-      status: 'Ativo',
-      sales: 5
-    },
-    {
-      id: '2002',
-      name: 'Fone de Ouvido Bluetooth',
-      price: 199.90,
-      status: 'Ativo',
-      sales: 12
+  const formatCurrency = (value) => {
+    try {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(value || 0);
+    } catch {
+      return 'R$ 0,00';
     }
-  ];
+  };
   
-  if (!user) {
-    return null; // Não renderizar nada enquanto redireciona
+  const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
+    switch (status.toLowerCase()) {
+      case 'entregue':
+      case 'delivered':
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'em trânsito':
+      case 'in_transit':
+      case 'shipping':
+        return 'bg-blue-100 text-blue-800';
+      case 'processando':
+      case 'processing':
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'cancelado':
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'ativo':
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'inativo':
+      case 'inactive':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+  
+  // Usar dados reais se disponíveis, senão usar do localStorage
+  const currentUser = realUserData || user;
+  
+  if (!isAuthenticated) {
+    return null; // Vai ser redirecionado para login
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+        <span className="ml-2">Carregando...</span>
+      </div>
+    );
   }
   
   return (
@@ -139,18 +288,24 @@ const ProfilePage = () => {
                 <CardDescription>Gerencie seus dados pessoais</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center">
-                <Avatar className="h-24 w-24 mb-4">
-                  <AvatarImage src="" />
-                  <AvatarFallback className="text-2xl bg-primary text-white">
-                    {user.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
+                {loadingProfile ? (
+                  <div className="h-24 w-24 mb-4 flex items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+                  </div>
+                ) : (
+                  <Avatar className="h-24 w-24 mb-4">
+                    <AvatarImage src="" />
+                    <AvatarFallback className="text-2xl bg-primary text-white">
+                      {currentUser.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
                 
                 <div className="text-center mb-4">
-                  <h3 className="text-xl font-semibold">{user.name}</h3>
-                  <p className="text-gray-500">{user.email}</p>
+                  <h3 className="text-xl font-semibold">{currentUser.name}</h3>
+                  <p className="text-gray-500">{currentUser.email}</p>
                   <p className="text-sm text-gray-500 mt-1">
-                    Membro desde {new Date(user.createdAt).toLocaleDateString()}
+                    Membro desde {formatDate(currentUser.createdAt)}
                   </p>
                 </div>
                 
@@ -158,6 +313,7 @@ const ProfilePage = () => {
                   variant="outline" 
                   className="w-full mb-2"
                   onClick={() => setIsEditing(!isEditing)}
+                  disabled={isSaving || loadingProfile}
                 >
                   {isEditing ? 'Cancelar Edição' : 'Editar Perfil'}
                 </Button>
@@ -181,18 +337,80 @@ const ProfilePage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {loadingProfile ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+                    <span className="ml-2">Carregando dados do perfil...</span>
+                  </div>
+                ) : (
+                  <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Nome Completo</Label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <User className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <Input
+                            id="name"
+                            name="name"
+                            value={profileData.name}
+                            onChange={handleChange}
+                            className="pl-10"
+                            disabled={!isEditing}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <Mail className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <Input
+                            id="email"
+                            name="email"
+                            value={profileData.email}
+                            onChange={handleChange}
+                            className="pl-10"
+                            disabled={!isEditing}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Telefone</Label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <Phone className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <Input
+                            id="phone"
+                            name="phone"
+                            value={profileData.phone}
+                            onChange={handleChange}
+                            className="pl-10"
+                            disabled={!isEditing}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <h3 className="text-lg font-medium">Endereço</h3>
+                    
                     <div className="space-y-2">
-                      <Label htmlFor="name">Nome Completo</Label>
+                      <Label htmlFor="rua">Endereço</Label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                          <User className="h-5 w-5 text-gray-400" />
+                          <MapPin className="h-5 w-5 text-gray-400" />
                         </div>
                         <Input
-                          id="name"
-                          name="name"
-                          value={profileData.name}
+                          id="rua"
+                          name="rua"
+                          value={profileData.rua}
                           onChange={handleChange}
                           className="pl-10"
                           disabled={!isEditing}
@@ -200,99 +418,44 @@ const ProfilePage = () => {
                       </div>
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                          <Mail className="h-5 w-5 text-gray-400" />
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cidade">Cidade</Label>
                         <Input
-                          id="email"
-                          name="email"
-                          value={profileData.email}
+                          id="cidade"
+                          name="cidade"
+                          value={profileData.cidade}
                           onChange={handleChange}
-                          className="pl-10"
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="estado">Estado</Label>
+                        <Input
+                          id="estado"
+                          name="estado"
+                          value={profileData.estado}
+                          onChange={handleChange}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="cep">CEP</Label>
+                        <Input
+                          id="cep"
+                          name="cep"
+                          value={profileData.cep}
+                          onChange={handleChange}
                           disabled={!isEditing}
                         />
                       </div>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Telefone</Label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                          <Phone className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <Input
-                          id="phone"
-                          name="phone"
-                          value={profileData.phone}
-                          onChange={handleChange}
-                          className="pl-10"
-                          disabled={!isEditing}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <h3 className="text-lg font-medium">Endereço</h3>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Endereço</Label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <MapPin className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <Input
-                        id="address"
-                        name="address"
-                        value={profileData.address}
-                        onChange={handleChange}
-                        className="pl-10"
-                        disabled={!isEditing}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="city">Cidade</Label>
-                      <Input
-                        id="city"
-                        name="city"
-                        value={profileData.city}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="state">Estado</Label>
-                      <Input
-                        id="state"
-                        name="state"
-                        value={profileData.state}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="zipCode">CEP</Label>
-                      <Input
-                        id="zipCode"
-                        name="zipCode"
-                        value={profileData.zipCode}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                  </div>
-                </form>
+                  </form>
+                )}
               </CardContent>
-              {isEditing && (
+              {isEditing && !loadingProfile && (
                 <CardFooter>
                   <Button 
                     onClick={handleSaveProfile}
@@ -324,7 +487,12 @@ const ProfilePage = () => {
               <CardDescription>Histórico de compras realizadas</CardDescription>
             </CardHeader>
             <CardContent>
-              {orders.length > 0 ? (
+              {loadingOrders ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+                  <span className="ml-2">Carregando pedidos...</span>
+                </div>
+              ) : orders.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -339,22 +507,18 @@ const ProfilePage = () => {
                     </thead>
                     <tbody>
                       {orders.map((order) => (
-                        <tr key={order.id} className="border-b hover:bg-gray-50">
-                          <td className="py-3 px-4 font-medium">#{order.id}</td>
-                          <td className="py-3 px-4">{order.date}</td>
-                          <td className="py-3 px-4">R$ {order.total.toFixed(2)}</td>
+                        <tr key={order._id || order.id} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium">
+                            #{(order._id || order.id || '').slice(-8) || 'N/A'}
+                          </td>
+                          <td className="py-3 px-4">{formatDate(order.createdAt || order.date)}</td>
+                          <td className="py-3 px-4">{formatCurrency(order.total || order.totalAmount || 0)}</td>
                           <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              order.status === 'Entregue' 
-                                ? 'bg-green-100 text-green-800' 
-                                : order.status === 'Em trânsito'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {order.status}
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                              {order.status || 'Processando'}
                             </span>
                           </td>
-                          <td className="py-3 px-4">{order.items}</td>
+                          <td className="py-3 px-4">{order.items?.length || order.quantity || 1}</td>
                           <td className="py-3 px-4 text-right">
                             <Button variant="outline" size="sm">Detalhes</Button>
                           </td>
@@ -370,8 +534,8 @@ const ProfilePage = () => {
                   <p className="text-gray-500 mb-4">
                     Você ainda não realizou nenhuma compra.
                   </p>
-                  <Button asChild>
-                    <a href="/produtos">Explorar Produtos</a>
+                  <Button onClick={() => navigate('/produtos')}>
+                    Explorar Produtos
                   </Button>
                 </div>
               )}
@@ -386,10 +550,15 @@ const ProfilePage = () => {
                 <CardTitle>Meus Produtos</CardTitle>
                 <CardDescription>Produtos que você está vendendo</CardDescription>
               </div>
-              <Button>Adicionar Produto</Button>
+              <Button onClick={() => navigate('/vender')}>Adicionar Produto</Button>
             </CardHeader>
             <CardContent>
-              {sellingProducts.length > 0 ? (
+              {loadingProducts ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+                  <span className="ml-2">Carregando produtos...</span>
+                </div>
+              ) : sellingProducts.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -398,25 +567,66 @@ const ProfilePage = () => {
                         <th className="text-left py-3 px-4">Produto</th>
                         <th className="text-left py-3 px-4">Preço</th>
                         <th className="text-left py-3 px-4">Status</th>
-                        <th className="text-left py-3 px-4">Vendas</th>
+                        <th className="text-left py-3 px-4">Categoria</th>
                         <th className="text-right py-3 px-4">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sellingProducts.map((product) => (
-                        <tr key={product.id} className="border-b hover:bg-gray-50">
-                          <td className="py-3 px-4 font-medium">#{product.id}</td>
-                          <td className="py-3 px-4">{product.name}</td>
-                          <td className="py-3 px-4">R$ {product.price.toFixed(2)}</td>
+                        <tr key={product._id || product.id} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium">
+                            #{(product._id || product.id || '').slice(-8) || 'N/A'}
+                          </td>
+                          <td className="py-3 px-4">{product.name || product.title}</td>
+                          <td className="py-3 px-4">{formatCurrency(product.price)}</td>
                           <td className="py-3 px-4">
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {product.status}
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(product.status || 'ativo')}`}>
+                              {product.status || 'Ativo'}
                             </span>
                           </td>
-                          <td className="py-3 px-4">{product.sales}</td>
+                          <td className="py-3 px-4">{product.category}</td>
                           <td className="py-3 px-4 text-right">
-                            <Button variant="outline" size="sm" className="mr-2">Editar</Button>
-                            <Button variant="destructive" size="sm">Remover</Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mr-2"
+                              onClick={() => navigate(`/produto/${product._id || product.id}`)}
+                            >
+                              Ver
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mr-2"
+                            >
+                              Editar
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={async () => {
+                                if (confirm('Tem certeza que deseja remover este produto?')) {
+                                  try {
+                                    await apiService.deleteProduct(product._id || product.id);
+                                    fetchSellerProducts(); // Recarregar lista
+                                    toast({
+                                      title: "Produto removido",
+                                      description: "O produto foi removido com sucesso.",
+                                      duration: 3000,
+                                    });
+                                  } catch (error) {
+                                    toast({
+                                      title: "Erro",
+                                      description: "Não foi possível remover o produto.",
+                                      variant: "destructive",
+                                      duration: 3000,
+                                    });
+                                  }
+                                }
+                              }}
+                            >
+                              Remover
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -430,8 +640,8 @@ const ProfilePage = () => {
                   <p className="text-gray-500 mb-4">
                     Você ainda não está vendendo nenhum produto.
                   </p>
-                  <Button asChild>
-                    <a href="/vender">Começar a Vender</a>
+                  <Button onClick={() => navigate('/vender')}>
+                    Começar a Vender
                   </Button>
                 </div>
               )}

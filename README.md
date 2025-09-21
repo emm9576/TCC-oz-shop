@@ -82,7 +82,7 @@ node index.js
 ```
 
 Isso vai:
-- Iniciar o **backend** (arquivo `./api/api.js`)
+- Iniciar o **backend** (arquivo `./api/server.js`)
 - Iniciar o **frontend** (com `npm run dev` dentro de `./src/`)
 
 A aplicação estará disponível em:
@@ -97,7 +97,7 @@ A aplicação estará disponível em:
 TCC-E-Shop-FITO/
 │
 ├── api/               # Backend (API Express)
-│   ├── api.js
+│   ├── server.js
 │   └── ...
 │
 ├── src/               # Frontend (React + Vite)

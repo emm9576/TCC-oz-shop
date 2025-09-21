@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 
 // iniciar backend
-spawn('node', ['./api/api.js'], {
+spawn('node', ['./api/server.js'], {
   stdio: 'inherit',
 });
 

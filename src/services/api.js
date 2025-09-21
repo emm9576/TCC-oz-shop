@@ -118,6 +118,13 @@ class ApiService {
     return this.request('/users/me');
   }
 
+  async updateMe(userData) {
+    return this.request('/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
   async getAllUsers() {
     return this.request('/users');
   }

@@ -1,4 +1,4 @@
-import { requireAdmin } from '../middlewares/auth.js';
+import { requireAdmin, requireLogin } from '../middlewares/auth.js';
 import express from 'express';
 import User from '../../models/user.js';
 
@@ -14,15 +14,15 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 
-// GET - Retorna dados do usuário logado
-router.get('/me', async (req, res) => {
+// GET - Retorna dados completos do usuário logado
+router.get('/me', requireLogin, async (req, res) => {
   try {
     // req.user já contém os dados básicos do middleware
     // Buscar dados completos no banco (sem senha)
     const user = await User.findOne({ 
       id: req.user.id,
       deleted: { $ne: true } 
-    }).select('-password');
+    }).select('-password -deleted -__v');
 
     if (!user) {
       return res.status(404).json({ 
@@ -31,14 +31,95 @@ router.get('/me', async (req, res) => {
       });
     }
 
+    // Retornar todos os campos do usuário (exceto senha)
     res.json({ 
       success: true, 
-      data: user 
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        estado: user.estado,
+        cidade: user.cidade,
+        rua: user.rua,
+        cep: user.cep,
+        role: user.role,
+        createdAt: user.createdAt,
+        _id: user._id
+      }
     });
   } catch (error) {
     res.status(500).json({ 
       success: false, 
       message: 'Erro ao buscar dados do usuário', 
+      error: error.message 
+    });
+  }
+});
+
+// PUT - Atualizar dados do próprio usuário logado
+router.put('/me', requireLogin, async (req, res) => {
+  try {
+    const { name, email, phone, estado, cidade, rua, cep } = req.body;
+    
+    // Verificar se o email já está em uso por outro usuário
+    if (email && email !== req.user.email) {
+      const existingUser = await User.findOne({ 
+        email: email,
+        id: { $ne: req.user.id },
+        deleted: { $ne: true }
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Este email já está em uso por outro usuário.' 
+        });
+      }
+    }
+    
+    const updatedUser = await User.findOneAndUpdate(
+      { id: req.user.id },
+      { 
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(phone && { phone }),
+        ...(estado !== undefined && { estado }),
+        ...(cidade !== undefined && { cidade }),
+        ...(rua !== undefined && { rua }),
+        ...(cep !== undefined && { cep })
+      },
+      { new: true, runValidators: true }
+    ).select('-password -deleted -__v');
+
+    if (!updatedUser) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Usuário não encontrado' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Perfil atualizado com sucesso!', 
+      data: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        estado: updatedUser.estado,
+        cidade: updatedUser.cidade,
+        rua: updatedUser.rua,
+        cep: updatedUser.cep,
+        role: updatedUser.role,
+        createdAt: updatedUser.createdAt,
+        _id: updatedUser._id
+      }
+    });
+  } catch (error) {
+    res.status(400).json({ 
+      success: false, 
+      message: 'Erro ao atualizar perfil', 
       error: error.message 
     });
   }
