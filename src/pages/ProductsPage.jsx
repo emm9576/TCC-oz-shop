@@ -19,8 +19,6 @@ const ProductsPage = () => {
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
     seller: searchParams.get('seller') || '',
-    page: parseInt(searchParams.get('page')) || 1,
-    limit: parseInt(searchParams.get('limit')) || 12,
   });
 
   const { 
@@ -74,7 +72,7 @@ const ProductsPage = () => {
 
     await fetchProducts(params);
 
-    // Atualizar URL com os parâmetros de busca
+    // Atualizar URL com os parâmetros de busca (sem page e limit)
     const urlParams = new URLSearchParams();
     Object.keys(params).forEach(key => {
       if (params[key] !== undefined) {
@@ -93,7 +91,6 @@ const ProductsPage = () => {
     setLocalFilters(prev => ({
       ...prev,
       [key]: value,
-      page: 1, // Reset para primeira página quando filtros mudarem
     }));
   };
 
@@ -109,18 +106,9 @@ const ProductsPage = () => {
       minPrice: '',
       maxPrice: '',
       seller: '',
-      page: 1,
-      limit: 12,
     });
     clearFilters();
     setSearchParams({});
-  };
-
-  const handlePageChange = (newPage) => {
-    setLocalFilters(prev => ({
-      ...prev,
-      page: newPage,
-    }));
   };
 
   const containerVariants = {
@@ -181,9 +169,9 @@ const ProductsPage = () => {
               Filtros
             </Button>
             
-            {pagination && (
+            {products.length > 0 && (
               <p className="text-sm text-gray-600">
-                {pagination.total} produto{pagination.total !== 1 ? 's' : ''} encontrado{pagination.total !== 1 ? 's' : ''}
+                {products.length} produto{products.length !== 1 ? 's' : ''} encontrado{products.length !== 1 ? 's' : ''}
               </p>
             )}
           </div>
@@ -299,71 +287,22 @@ const ProductsPage = () => {
               </Button>
             </div>
           ) : (
-            <>
-              <motion.div
-                className={
-                  viewMode === 'grid'
-                    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-                    : 'space-y-4'
-                }
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                {products.map((product) => (
-                  <motion.div key={product.id} variants={itemVariants}>
-                    <ProductCard product={product} viewMode={viewMode} />
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              {/* Paginação */}
-              {pagination && pagination.pages > 1 && (
-                <div className="mt-8 flex justify-center">
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={pagination.page === 1 || loading}
-                    >
-                      Anterior
-                    </Button>
-                    
-                    {/* Números das páginas */}
-                    {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
-                      const page = i + 1;
-                      const isCurrentPage = page === pagination.page;
-                      
-                      return (
-                        <Button
-                          key={page}
-                          variant={isCurrentPage ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handlePageChange(page)}
-                          disabled={loading}
-                        >
-                          {page}
-                        </Button>
-                      );
-                    })}
-                    
-                    {pagination.pages > 5 && (
-                      <span className="px-2">...</span>
-                    )}
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={pagination.page === pagination.pages || loading}
-                    >
-                      Próxima
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
+            <motion.div
+              className={
+                viewMode === 'grid'
+                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+                  : 'space-y-4'
+              }
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              {products.map((product) => (
+                <motion.div key={product.id} variants={itemVariants}>
+                  <ProductCard product={product} viewMode={viewMode} />
+                </motion.div>
+              ))}
+            </motion.div>
           )}
         </div>
       </div>

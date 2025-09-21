@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -19,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 
 const CartPage = () => {
-  const { cartItems, removeFromCart, updateQuantity, clearCart, getCartTotal } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, clearCart, cartTotal } = useCart();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -55,7 +54,6 @@ const CartPage = () => {
     }, 2000);
   };
   
-  const cartTotal = getCartTotal();
   const shippingCost = cartTotal > 100 ? 0 : 15.90;
   const totalWithShipping = cartTotal + shippingCost;
   

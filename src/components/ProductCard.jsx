@@ -1,15 +1,19 @@
 // src/components/ProductCard.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Star, ShoppingCart, Truck } from 'lucide-react';
+import { Star, ShoppingCart, Truck, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useProducts } from '@/contexts/ProductsContext';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 
 const ProductCard = ({ product, viewMode = 'grid' }) => {
   const { addToCart } = useCart();
+  const { user } = useAuth();
+  const { deleteProduct } = useProducts();
   const { toast } = useToast();
 
   // Validação e valores padrão
@@ -32,8 +36,13 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
     freeShipping = false
   } = product;
 
-  // Usar imageMain se disponível, senão image
-  const productImage = imageMain || image || 'https://via.placeholder.com/300x300?text=Sem+Imagem';
+  // Usar imageMain se disponível, senão image, sem placeholder
+  const productImage = imageMain || image;
+  
+  // Se não há imagem, não renderizar o produto
+  if (!productImage) {
+    return null;
+  }
   
   // Calcular preço com desconto
   const originalPrice = Number(price) || 0;
@@ -44,6 +53,9 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
 
   // Verificar se tem frete grátis
   const hasFreeShipping = freteGratis || freeShipping;
+
+  // Verificar se o usuário é admin
+  const isAdmin = user && (user.role === 'admin' || user.email === 'admin@admin.com');
 
   const handleAddToCart = (e) => {
     e.preventDefault();
@@ -68,6 +80,29 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
     });
   };
 
+  const handleDeleteProduct = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (window.confirm(`Tem certeza que deseja excluir o produto "${name}"?`)) {
+      const result = await deleteProduct(id);
+      if (result.success) {
+        toast({
+          title: "Produto excluído",
+          description: `${name} foi removido do catálogo.`,
+          duration: 3000,
+        });
+      } else {
+        toast({
+          title: "Erro ao excluir produto",
+          description: result.message || "Ocorreu um erro ao excluir o produto.",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
+    }
+  };
+
   if (viewMode === 'list') {
     return (
       <motion.div 
@@ -82,9 +117,6 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
               src={productImage} 
               alt={name}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/300x300?text=Sem+Imagem';
-              }}
             />
           </div>
           
@@ -142,15 +174,28 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
                 </div>
               </div>
               
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="border-primary text-primary hover:bg-primary hover:text-white"
-                onClick={handleAddToCart}
-                disabled={stock <= 0}
-              >
-                <ShoppingCart size={16} />
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="border-primary text-primary hover:bg-primary hover:text-white"
+                  onClick={handleAddToCart}
+                  disabled={stock <= 0}
+                >
+                  <ShoppingCart size={16} />
+                </Button>
+                
+                {isAdmin && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                    onClick={handleDeleteProduct}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </Link>
@@ -172,9 +217,6 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
             src={productImage} 
             alt={name}
             className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-            onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/300x300?text=Sem+Imagem';
-            }}
           />
           {discountPercent > 0 && (
             <Badge className="absolute top-2 right-2 bg-red-500 text-white">
@@ -221,15 +263,28 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
               </div>
             </div>
             
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="border-primary text-primary hover:bg-primary hover:text-white"
-              onClick={handleAddToCart}
-              disabled={stock <= 0}
-            >
-              <ShoppingCart size={16} />
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="border-primary text-primary hover:bg-primary hover:text-white"
+                onClick={handleAddToCart}
+                disabled={stock <= 0}
+              >
+                <ShoppingCart size={16} />
+              </Button>
+              
+              {isAdmin && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                  onClick={handleDeleteProduct}
+                >
+                  <Trash2 size={16} />
+                </Button>
+              )}
+            </div>
           </div>
           
           <div className="flex flex-col gap-1">
