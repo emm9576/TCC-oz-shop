@@ -1,440 +1,483 @@
-
+// src/pages/SellPage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, Plus, Minus, DollarSign, Tag, Truck, Info } from 'lucide-react';
+import { 
+  Upload, 
+  Image as ImageIcon, 
+  X, 
+  Plus, 
+  DollarSign,
+  Package,
+  Truck,
+  Tag,
+  FileText,
+  Loader2
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProducts } from '@/contexts/ProductsContext';
 import { useToast } from '@/components/ui/use-toast';
-import { categories } from '@/data/products';
 
 const SellPage = () => {
-  const { user, isAuthenticated } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  
-  const [productData, setProductData] = useState({
+  const [formData, setFormData] = useState({
     name: '',
     description: '',
-    price: '',
-    discount: '0',
     category: '',
-    stock: '1',
+    price: '',
+    discount: '',
+    stock: '',
+    imageMain: '',
     images: [],
-    features: [''],
-    freeShipping: false
+    features: [],
+    freteGratis: false,
   });
-  
+  const [currentFeature, setCurrentFeature] = useState('');
+  const [currentImage, setCurrentImage] = useState('');
+  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Redirecionar se não estiver autenticado
+
+  const { user, isAuthenticated } = useAuth();
+  const { createProduct } = useProducts();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Categorias disponíveis
+  const categories = [
+    { value: 'Electronics', label: 'Eletrônicos' },
+    { value: 'Fashion', label: 'Moda' },
+    { value: 'Home', label: 'Casa e Decoração' },
+    { value: 'Sports', label: 'Esportes' },
+    { value: 'Beauty', label: 'Beleza e Saúde' },
+    { value: 'Books', label: 'Livros' },
+    { value: 'Automotive', label: 'Automotivo' },
+  ];
+
+  // Verificar autenticação
   React.useEffect(() => {
     if (!isAuthenticated) {
-      toast({
-        title: "Login necessário",
-        description: "Você precisa estar logado para vender produtos.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      navigate('/login');
+      navigate('/login', { state: { from: { pathname: '/vender' } } });
     }
-  }, [isAuthenticated, navigate, toast]);
-  
+  }, [isAuthenticated, navigate]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setProductData(prev => ({
+    
+    setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
-  };
-  
-  const handleFeatureChange = (index, value) => {
-    const updatedFeatures = [...productData.features];
-    updatedFeatures[index] = value;
-    setProductData(prev => ({
-      ...prev,
-      features: updatedFeatures
-    }));
-  };
-  
-  const addFeature = () => {
-    setProductData(prev => ({
-      ...prev,
-      features: [...prev.features, '']
-    }));
-  };
-  
-  const removeFeature = (index) => {
-    const updatedFeatures = [...productData.features];
-    updatedFeatures.splice(index, 1);
-    setProductData(prev => ({
-      ...prev,
-      features: updatedFeatures
-    }));
-  };
-  
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    
-    if (files.length + productData.images.length > 5) {
-      toast({
-        title: "Limite de imagens",
-        description: "Você pode adicionar no máximo 5 imagens.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
+
+    // Limpar erro do campo
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
     }
-    
-    // Simulando upload de imagens
-    const newImages = files.map(file => ({
-      id: Date.now() + Math.random().toString(36).substring(2, 9),
-      name: file.name,
-      // Em uma aplicação real, aqui seria feito o upload para um servidor
-      url: URL.createObjectURL(file)
-    }));
-    
-    setProductData(prev => ({
+  };
+
+  const handleAddFeature = () => {
+    if (currentFeature.trim() && !formData.features.includes(currentFeature.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        features: [...prev.features, currentFeature.trim()]
+      }));
+      setCurrentFeature('');
+    }
+  };
+
+  const handleRemoveFeature = (feature) => {
+    setFormData(prev => ({
       ...prev,
-      images: [...prev.images, ...newImages]
+      features: prev.features.filter(f => f !== feature)
     }));
   };
-  
-  const removeImage = (id) => {
-    setProductData(prev => ({
+
+  const handleAddImage = () => {
+    if (currentImage.trim() && !formData.images.includes(currentImage.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, currentImage.trim()]
+      }));
+      setCurrentImage('');
+    }
+  };
+
+  const handleRemoveImage = (image) => {
+    setFormData(prev => ({
       ...prev,
-      images: prev.images.filter(img => img.id !== id)
+      images: prev.images.filter(img => img !== image)
     }));
   };
-  
-  const handleSubmit = (e) => {
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Campos obrigatórios
+    if (!formData.name.trim()) {
+      newErrors.name = 'Nome do produto é obrigatório';
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = 'Descrição é obrigatória';
+    }
+
+    if (!formData.category) {
+      newErrors.category = 'Categoria é obrigatória';
+    }
+
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      newErrors.price = 'Preço deve ser maior que zero';
+    }
+
+    if (!formData.stock || parseInt(formData.stock) <= 0) {
+      newErrors.stock = 'Estoque deve ser maior que zero';
+    }
+
+    if (!formData.imageMain.trim()) {
+      newErrors.imageMain = 'Imagem principal é obrigatória';
+    }
+
+    // Validar desconto
+    if (formData.discount && (parseFloat(formData.discount) < 0 || parseFloat(formData.discount) > 100)) {
+      newErrors.discount = 'Desconto deve estar entre 0 e 100%';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validação básica
-    if (!productData.name || !productData.description || !productData.price || !productData.category) {
-      toast({
-        title: "Erro de validação",
-        description: "Por favor, preencha todos os campos obrigatórios.",
-        variant: "destructive",
-        duration: 3000,
-      });
+
+    if (!validateForm()) {
       return;
     }
-    
-    if (productData.images.length === 0) {
-      toast({
-        title: "Erro de validação",
-        description: "Adicione pelo menos uma imagem do produto.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-    
+
     setIsSubmitting(true);
-    
-    // Simulando envio do produto
-    setTimeout(() => {
-      toast({
-        title: "Produto cadastrado com sucesso!",
-        description: "Seu produto foi enviado para análise e em breve estará disponível para venda.",
-        duration: 5000,
-      });
-      
+
+    try {
+      const productData = {
+        ...formData,
+        price: parseFloat(formData.price),
+        discount: formData.discount ? parseFloat(formData.discount) : 0,
+        stock: parseInt(formData.stock),
+        seller: user?.name || 'Vendedor',
+        rating: 0,
+        reviews: 0,
+      };
+
+      const result = await createProduct(productData);
+
+      if (result.success) {
+        navigate('/produtos');
+      }
+    } catch (error) {
+      console.error('Erro ao criar produto:', error);
+    } finally {
       setIsSubmitting(false);
-      navigate('/perfil?tab=selling');
-    }, 2000);
+    }
   };
-  
+
   if (!isAuthenticated) {
-    return null; // Não renderizar nada enquanto redireciona
+    return null; // Componente será redirecionado no useEffect
   }
-  
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <h1 className="text-3xl font-bold mb-2">Vender um Produto</h1>
-          <p className="text-gray-600 mb-8">
-            Preencha os detalhes do produto que você deseja vender
-          </p>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-              <Card className="md:col-span-2">
-                <CardHeader>
-                  <CardTitle>Informações do Produto</CardTitle>
-                  <CardDescription>Detalhes básicos do seu produto</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Vender Produto
+            </h1>
+            <p className="text-gray-600">
+              Preencha as informações do seu produto para começar a vender
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Informações Básicas */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Informações Básicas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome do Produto *</Label>
                     <Input
                       id="name"
                       name="name"
-                      value={productData.name}
+                      placeholder="Ex: iPhone 15 Pro Max"
+                      value={formData.name}
                       onChange={handleChange}
-                      placeholder="Ex: Smartphone Samsung Galaxy S23"
-                      required
+                      className={errors.name ? 'border-red-500' : ''}
                     />
+                    {errors.name && (
+                      <p className="text-sm text-red-500">{errors.name}</p>
+                    )}
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="description">Descrição *</Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      value={productData.description}
+                    <Label htmlFor="category">Categoria *</Label>
+                    <select
+                      id="category"
+                      name="category"
+                      value={formData.category}
                       onChange={handleChange}
-                      placeholder="Descreva seu produto em detalhes..."
-                      rows={5}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Categoria *</Label>
-                      <select
-                        id="category"
-                        name="category"
-                        value={productData.category}
-                        onChange={handleChange}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        required
-                      >
-                        <option value="">Selecione uma categoria</option>
-                        {categories.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="stock">Quantidade em Estoque *</Label>
-                      <Input
-                        id="stock"
-                        name="stock"
-                        type="number"
-                        min="1"
-                        value={productData.stock}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <Label className="mb-2 block">Características do Produto</Label>
-                    {productData.features.map((feature, index) => (
-                      <div key={index} className="flex items-center mb-2">
-                        <Input
-                          value={feature}
-                          onChange={(e) => handleFeatureChange(index, e.target.value)}
-                          placeholder={`Característica ${index + 1}`}
-                          className="flex-1"
-                        />
-                        {productData.features.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFeature(index)}
-                            className="ml-2"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {index === productData.features.length - 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={addFeature}
-                            className="ml-2"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Preço e Envio</CardTitle>
-                  <CardDescription>Defina o valor e opções de envio</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Preço (R$) *</Label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <DollarSign className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <Input
-                        id="price"
-                        name="price"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={productData.price}
-                        onChange={handleChange}
-                        className="pl-10"
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="discount">Desconto (%)</Label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <Tag className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <Input
-                        id="discount"
-                        name="discount"
-                        type="number"
-                        min="0"
-                        max="99"
-                        value={productData.discount}
-                        onChange={handleChange}
-                        className="pl-10"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 pt-2">
-                    <input
-                      type="checkbox"
-                      id="freeShipping"
-                      name="freeShipping"
-                      checked={productData.freeShipping}
-                      onChange={handleChange}
-                      className="rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <Label htmlFor="freeShipping" className="cursor-pointer">
-                      <div className="flex items-center">
-                        <Truck className="h-4 w-4 mr-1 text-primary" />
-                        Oferecer Frete Grátis
-                      </div>
-                    </Label>
-                  </div>
-                  
-                  <div className="bg-blue-50 p-3 rounded-md mt-4">
-                    <div className="flex items-start">
-                      <Info className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
-                      <div className="text-sm text-blue-700">
-                        <p className="font-medium">Dica de Preço</p>
-                        <p className="mt-1">
-                          Produtos com preços competitivos e frete grátis tendem a vender mais rápido.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Imagens do Produto</CardTitle>
-                <CardDescription>Adicione até 5 imagens do seu produto</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="images" className="mb-2 block">Carregar Imagens *</Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-500 mb-2">
-                        Arraste e solte ou clique para selecionar
-                      </p>
-                      <p className="text-xs text-gray-400 mb-4">
-                        PNG, JPG ou JPEG (máx. 5MB cada)
-                      </p>
-                      <input
-                        id="images"
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                      <Button 
-                        type="button" 
-                        variant="outline"
-                        onClick={() => document.getElementById('images').click()}
-                      >
-                        Selecionar Imagens
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label className="mb-2 block">Imagens Selecionadas ({productData.images.length}/5)</Label>
-                    {productData.images.length > 0 ? (
-                      <div className="space-y-2">
-                        {productData.images.map((image) => (
-                          <div key={image.id} className="flex items-center p-2 border rounded-md">
-                            <div className="w-12 h-12 bg-gray-100 rounded-md overflow-hidden mr-3">
-                              <img 
-                                src={image.url} 
-                                alt={image.name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <span className="flex-1 truncate text-sm">{image.name}</span>
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => removeImage(image.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-32 border rounded-md bg-gray-50">
-                        <p className="text-gray-500 text-sm">Nenhuma imagem selecionada</p>
-                      </div>
+                      className={`w-full p-2 border rounded-md ${errors.category ? 'border-red-500' : 'border-gray-300'}`}
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      {categories.map(category => (
+                        <option key={category.value} value={category.value}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.category && (
+                      <p className="text-sm text-red-500">{errors.category}</p>
                     )}
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Descrição *</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="Descreva seu produto em detalhes..."
+                    rows={4}
+                    value={formData.description}
+                    onChange={handleChange}
+                    className={errors.description ? 'border-red-500' : ''}
+                  />
+                  {errors.description && (
+                    <p className="text-sm text-red-500">{errors.description}</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
-            
-            <div className="flex justify-end">
-              <Button 
-                type="submit" 
-                size="lg"
+
+            {/* Preço e Estoque */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Preço e Estoque
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Preço (R$) *</Label>
+                    <Input
+                      id="price"
+                      name="price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={formData.price}
+                      onChange={handleChange}
+                      className={errors.price ? 'border-red-500' : ''}
+                    />
+                    {errors.price && (
+                      <p className="text-sm text-red-500">{errors.price}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="discount">Desconto (%)</Label>
+                    <Input
+                      id="discount"
+                      name="discount"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={formData.discount}
+                      onChange={handleChange}
+                      className={errors.discount ? 'border-red-500' : ''}
+                    />
+                    {errors.discount && (
+                      <p className="text-sm text-red-500">{errors.discount}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="stock">Quantidade em Estoque *</Label>
+                    <Input
+                      id="stock"
+                      name="stock"
+                      type="number"
+                      min="1"
+                      placeholder="1"
+                      value={formData.stock}
+                      onChange={handleChange}
+                      className={errors.stock ? 'border-red-500' : ''}
+                    />
+                    {errors.stock && (
+                      <p className="text-sm text-red-500">{errors.stock}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="freteGratis"
+                    name="freteGratis"
+                    checked={formData.freteGratis}
+                    onChange={handleChange}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="freteGratis" className="flex items-center gap-2">
+                    <Truck className="h-4 w-4" />
+                    Frete Grátis
+                  </Label>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Imagens */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  Imagens do Produto
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="imageMain">Imagem Principal (URL) *</Label>
+                  <Input
+                    id="imageMain"
+                    name="imageMain"
+                    type="url"
+                    placeholder="https://exemplo.com/imagem.jpg"
+                    value={formData.imageMain}
+                    onChange={handleChange}
+                    className={errors.imageMain ? 'border-red-500' : ''}
+                  />
+                  {errors.imageMain && (
+                    <p className="text-sm text-red-500">{errors.imageMain}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Imagens Adicionais</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="url"
+                      placeholder="URL da imagem adicional"
+                      value={currentImage}
+                      onChange={(e) => setCurrentImage(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddImage();
+                        }
+                      }}
+                    />
+                    <Button type="button" onClick={handleAddImage}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {formData.images.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.images.map((image, index) => (
+                        <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                          Imagem {index + 1}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(image)}
+                            className="ml-1 hover:text-red-500"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Características */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Tag className="h-5 w-5" />
+                  Características do Produto
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Ex: Tela OLED, 128GB, 5G..."
+                    value={currentFeature}
+                    onChange={(e) => setCurrentFeature(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddFeature();
+                      }
+                    }}
+                  />
+                  <Button type="button" onClick={handleAddFeature}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {formData.features.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.features.map((feature, index) => (
+                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                        {feature}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFeature(feature)}
+                          className="ml-1 hover:text-red-500"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Botão de submissão */}
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/produtos')}
                 disabled={isSubmitting}
               >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent"></div>
-                    Enviando...
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Publicando Produto...
                   </>
                 ) : (
                   'Publicar Produto'
