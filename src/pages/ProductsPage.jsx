@@ -290,14 +290,14 @@ const ProductsPage = () => {
             <motion.div
               className={
                 viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+                  ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-2 gap-6'
                   : 'space-y-4'
               }
               variants={containerVariants}
               initial="hidden"
               animate="visible"
             >
-              {products.map((product) => (
+              {products.filter(product => product.imageMain || product.image).map((product) => (
                 <motion.div key={product.id} variants={itemVariants}>
                   <ProductCard product={product} viewMode={viewMode} />
                 </motion.div>
