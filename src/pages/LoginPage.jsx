@@ -50,9 +50,9 @@ const LoginPage = () => {
 
     if (!formData.password.trim()) {
       newErrors.password = 'Senha é obrigatória';
-    } else if (formData.password.length < 6) {
+    } /*else if (formData.password.length < 6) {
       newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
-    }
+    }*/
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

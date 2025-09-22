@@ -35,6 +35,12 @@ class ApiService {
       const response = await fetch(url, config);
       const data = await response.json();
 
+      // Verificar se há um novo token no header da resposta
+      const newToken = response.headers.get('X-New-Token');
+      if (newToken) {
+        this.setToken(newToken);
+      }
+
       if (!response.ok) {
         throw new Error(data.message || 'Erro na requisição');
       }
@@ -118,13 +124,6 @@ class ApiService {
     return this.request('/users/me');
   }
 
-  async updateMe(userData) {
-    return this.request('/users/me', {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-  }
-
   async getAllUsers() {
     return this.request('/users');
   }
@@ -167,6 +166,11 @@ class ApiService {
 
   async getProductById(id) {
     return this.request(`/produtos/${id}`, { requireAuth: false });
+  }
+
+  // Nova função para buscar produtos do usuário autenticado
+  async getMyProducts() {
+    return this.request('/produtos/my-products');
   }
 
   async createProduct(productData) {

@@ -1,5 +1,6 @@
 import express from 'express';
 import Produto from '../../models/produto.js';
+import { requireLogin } from '../middlewares/auth.js';
 
 const router = express.Router();
 
@@ -36,6 +37,30 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao buscar produtos', error: error.message });
+  }
+});
+
+// GET - Buscar produtos do usuário autenticado (nova rota)
+router.get('/my-products', requireLogin, async (req, res) => {
+  try {
+    const userName = req.user.name;
+    
+    const produtos = await Produto.find({ 
+      seller: userName,
+      deleted: { $ne: true } // Não buscar produtos deletados
+    }).sort({ createdAt: -1 });
+
+    res.json({ 
+      success: true, 
+      data: produtos,
+      message: produtos.length === 0 ? 'Nenhum produto encontrado' : undefined
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao buscar seus produtos', 
+      error: error.message 
+    });
   }
 });
 
@@ -206,7 +231,6 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao deletar produto', error: error.message });
   }
 });
-
 
 // GET - Buscar produtos por vendedor
 router.get('/seller/:seller', async (req, res) => {
