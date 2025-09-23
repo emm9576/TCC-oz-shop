@@ -18,6 +18,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const URL = process.env.URL
 
 // Middlewares
 app.use(cors());
@@ -53,8 +54,8 @@ app.get('/', (req, res) => {
 });
 
 // Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Servidor rodando em: http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor rodando em: ${URL}:${PORT}`);
 });
 
 export default app;
