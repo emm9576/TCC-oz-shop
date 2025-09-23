@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, User, Menu, X } from 'lucide-react';
@@ -11,6 +10,7 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
   const { cartItems } = useCart();
   const navigate = useNavigate();
@@ -86,23 +86,53 @@ const Navbar = () => {
             </Link>
             
             {user ? (
-              <div className="relative group">
+              <div 
+                className="relative"
+                onMouseEnter={() => setIsProfileMenuOpen(true)}
+                onMouseLeave={() => setIsProfileMenuOpen(false)}
+              >
                 <Button variant="ghost" className="flex items-center space-x-2">
                   <User className="h-5 w-5" />
                   <span className="text-sm">{user.name?.split(' ')[0] || 'Usuário'}</span>
                 </Button>
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg overflow-hidden z-20 hidden group-hover:block">
-                  <div className="py-1">
-                    <Link to="/perfil" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Meu Perfil</Link>
-                    <Link to="/vender" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Meus Produtos</Link>
-                    <button 
-                      onClick={logout} 
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                
+                <AnimatePresence>
+                  {isProfileMenuOpen && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute right-0 top-full w-48 bg-white rounded-md shadow-lg overflow-hidden z-20 border border-gray-200"
                     >
-                      Sair
-                    </button>
-                  </div>
-                </div>
+                      <div className="py-1">
+                        <Link 
+                          to="/perfil" 
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          onClick={() => setIsProfileMenuOpen(false)}
+                        >
+                          Meu Perfil
+                        </Link>
+                        <Link 
+                          to="/vender" 
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          onClick={() => setIsProfileMenuOpen(false)}
+                        >
+                          Meus Produtos
+                        </Link>
+                        <button 
+                          onClick={() => {
+                            logout();
+                            setIsProfileMenuOpen(false);
+                          }} 
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          Sair
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
               <Link to="/login">
