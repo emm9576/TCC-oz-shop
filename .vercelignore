@@ -1,0 +1,23 @@
+# Backend files
+api/
+models/
+backend-deploy/
+
+# Environment files
+.env.exemple
+*.backup
+
+# Server files
+server.json
+
+# Development files
+node_modules/
+.git/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
