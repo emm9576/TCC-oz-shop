@@ -28,7 +28,6 @@ function App() {
               <Navbar />
               
               {/* Token Status - Apenas para desenvolvimento */}
-              {console.log(process.env.NODE_ENV)}
               {process.env.NODE_ENV === 'development' && (
                 <div className="fixed bottom-4 right-4 z-50">
                   <TokenStatus className="w-80 shadow-lg" />
