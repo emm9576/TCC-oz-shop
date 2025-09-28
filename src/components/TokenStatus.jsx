@@ -2,65 +2,68 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, RefreshCw, Shield, AlertTriangle } from 'lucide-react';
+import { Clock, RefreshCw, Shield, AlertTriangle, User, Database } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import apiService from '@/services/api';
 
 const TokenStatus = ({ className = '' }) => {
-  const { isAuthenticated, getTokenTimeRemaining } = useAuth();
-  const [tokenInfo, setTokenInfo] = useState({
-    hasToken: false,
-    hasRefreshToken: false,
-    expiresIn: null,
-    timeRemaining: 0,
-    isExpired: false,
-    isExpiringSoon: false
+  const { isAuthenticated, user } = useAuth();
+  const [authInfo, setAuthInfo] = useState({
+    hasUser: false,
+    hasUsersDb: false,
+    userCreatedAt: null,
+    sessionDuration: 0,
+    usersCount: 0
   });
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const updateTokenInfo = () => {
-    const token = localStorage.getItem('token');
-    const refreshToken = localStorage.getItem('refreshToken');
-    const expiresIn = localStorage.getItem('expiresIn');
+  const updateAuthInfo = () => {
+    const storedUser = localStorage.getItem('user');
+    const storedUsers = localStorage.getItem('users');
     
-    const currentTime = Date.now();
-    const expirationTime = expiresIn ? parseInt(expiresIn) : 0;
-    const timeRemaining = Math.max(0, expirationTime - currentTime);
-    const isExpired = currentTime >= expirationTime;
-    const fiveMinutes = 5 * 60 * 1000;
-    const isExpiringSoon = timeRemaining > 0 && timeRemaining < fiveMinutes;
+    let userCreatedAt = null;
+    let sessionDuration = 0;
+    let usersCount = 0;
 
-    setTokenInfo({
-      hasToken: !!token,
-      hasRefreshToken: !!refreshToken,
-      expiresIn: expirationTime,
-      timeRemaining,
-      isExpired,
-      isExpiringSoon
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        userCreatedAt = userData.createdAt ? new Date(userData.createdAt) : null;
+        if (userCreatedAt) {
+          sessionDuration = Date.now() - userCreatedAt.getTime();
+        }
+      } catch (error) {
+        console.error('Erro ao parsear dados do usuário:', error);
+      }
+    }
+
+    if (storedUsers) {
+      try {
+        const usersData = JSON.parse(storedUsers);
+        usersCount = Array.isArray(usersData) ? usersData.length : 0;
+      } catch (error) {
+        console.error('Erro ao parsear lista de usuários:', error);
+      }
+    }
+
+    setAuthInfo({
+      hasUser: !!storedUser,
+      hasUsersDb: !!storedUsers,
+      userCreatedAt,
+      sessionDuration,
+      usersCount
     });
   };
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setTokenInfo({
-        hasToken: false,
-        hasRefreshToken: false,
-        expiresIn: null,
-        timeRemaining: 0,
-        isExpired: false,
-        isExpiringSoon: false
-      });
-      return;
-    }
-
-    updateTokenInfo();
-    const interval = setInterval(updateTokenInfo, 1000); // Atualizar a cada segundo
+    updateAuthInfo();
+    
+    // Atualizar a cada 5 segundos (menos frequente que tokens)
+    const interval = setInterval(updateAuthInfo, 5000);
 
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
-  const formatTimeRemaining = (milliseconds) => {
-    if (milliseconds <= 0) return 'Expirado';
+  const formatDuration = (milliseconds) => {
+    if (milliseconds <= 0) return 'Agora';
     
     const seconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -70,7 +73,7 @@ const TokenStatus = ({ className = '' }) => {
     if (days > 0) {
       return `${days}d ${hours % 24}h ${minutes % 60}m`;
     } else if (hours > 0) {
-      return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+      return `${hours}h ${minutes % 60}m`;
     } else if (minutes > 0) {
       return `${minutes}m ${seconds % 60}s`;
     } else {
@@ -78,30 +81,10 @@ const TokenStatus = ({ className = '' }) => {
     }
   };
 
-  const getStatusColor = () => {
-    if (!tokenInfo.hasToken) return 'secondary';
-    if (tokenInfo.isExpired) return 'destructive';
-    if (tokenInfo.isExpiringSoon) return 'warning';
-    return 'success';
-  };
-
-  const getStatusIcon = () => {
-    if (!tokenInfo.hasToken) return <Shield className="h-4 w-4" />;
-    if (tokenInfo.isExpired) return <AlertTriangle className="h-4 w-4" />;
-    if (tokenInfo.isExpiringSoon) return <Clock className="h-4 w-4" />;
-    return <Shield className="h-4 w-4" />;
-  };
-
-  const handleRefreshToken = async () => {
-    setIsRefreshing(true);
-    try {
-      await apiService.refreshTokenManually();
-      updateTokenInfo();
-    } catch (error) {
-      console.error('Erro ao renovar token:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
+  const clearLocalData = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('users');
+    window.location.reload(); // Recarregar para atualizar estado
   };
 
   if (!isAuthenticated) {
@@ -110,11 +93,17 @@ const TokenStatus = ({ className = '' }) => {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            Status do Token
+            Status da Autenticação
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <Badge variant="secondary">Não autenticado</Badge>
+          
+          {authInfo.hasUsersDb && (
+            <div className="text-xs text-gray-500">
+              {authInfo.usersCount} usuário(s) cadastrado(s)
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -124,84 +113,96 @@ const TokenStatus = ({ className = '' }) => {
     <Card className={className}>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
-          {getStatusIcon()}
-          Status do Token
+          <User className="h-4 w-4" />
+          Status da Autenticação
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Access Token:</span>
-          <Badge variant={getStatusColor()}>
-            {tokenInfo.hasToken ? 'Presente' : 'Ausente'}
+          <span className="text-sm text-gray-600">Usuário Logado:</span>
+          <Badge variant="success">
+            {authInfo.hasUser ? 'Sim' : 'Não'}
           </Badge>
         </div>
         
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Refresh Token:</span>
-          <Badge variant={tokenInfo.hasRefreshToken ? 'success' : 'destructive'}>
-            {tokenInfo.hasRefreshToken ? 'Presente' : 'Ausente'}
+          <span className="text-sm text-gray-600">Sistema:</span>
+          <Badge variant="secondary">
+            localStorage
           </Badge>
         </div>
 
-        {tokenInfo.hasToken && (
+        {user && (
           <>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Status:</span>
-              <Badge variant={getStatusColor()}>
-                {tokenInfo.isExpired 
-                  ? 'Expirado' 
-                  : tokenInfo.isExpiringSoon 
-                    ? 'Expirando em breve' 
-                    : 'Válido'
-                }
-              </Badge>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Tempo restante:</span>
-              <span className={`text-sm font-mono ${
-                tokenInfo.isExpired 
-                  ? 'text-red-600' 
-                  : tokenInfo.isExpiringSoon 
-                    ? 'text-orange-600' 
-                    : 'text-green-600'
-              }`}>
-                {formatTimeRemaining(tokenInfo.timeRemaining)}
+              <span className="text-sm text-gray-600">Nome:</span>
+              <span className="text-sm text-gray-800 font-medium">
+                {user.name}
               </span>
             </div>
 
-            {tokenInfo.expiresIn && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Expira em:</span>
-                <span className="text-sm text-gray-800">
-                  {new Date(tokenInfo.expiresIn).toLocaleString('pt-BR')}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Email:</span>
+              <span className="text-sm text-gray-800">
+                {user.email}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">ID:</span>
+              <span className="text-sm text-gray-500 font-mono">
+                {user.id}
+              </span>
+            </div>
           </>
         )}
 
-        {tokenInfo.hasRefreshToken && (tokenInfo.isExpired || tokenInfo.isExpiringSoon) && (
+        {authInfo.userCreatedAt && (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Conta criada:</span>
+              <span className="text-sm text-gray-800">
+                {authInfo.userCreatedAt.toLocaleDateString('pt-BR')}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Tempo de sessão:</span>
+              <span className="text-sm text-green-600 font-mono">
+                {formatDuration(authInfo.sessionDuration)}
+              </span>
+            </div>
+          </>
+        )}
+
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600 flex items-center gap-1">
+            <Database className="h-3 w-3" />
+            Usuários cadastrados:
+          </span>
+          <span className="text-sm text-gray-800">
+            {authInfo.usersCount}
+          </span>
+        </div>
+
+        {/* Botão para limpar dados locais */}
+        <div className="pt-2 border-t">
           <Button 
             size="sm" 
             variant="outline" 
-            onClick={handleRefreshToken}
-            disabled={isRefreshing}
-            className="w-full mt-3"
+            onClick={clearLocalData}
+            className="w-full text-xs"
           >
-            {isRefreshing ? (
-              <>
-                <div className="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-r-transparent"></div>
-                Renovando...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-3 w-3" />
-                Renovar Token
-              </>
-            )}
+            <RefreshCw className="mr-2 h-3 w-3" />
+            Limpar Dados Locais
           </Button>
-        )}
+        </div>
+
+        {/* Nota sobre o sistema */}
+        <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded border">
+          💡 <strong>Sistema atual:</strong> localStorage (mock). 
+          Sessão persiste até limpar navegador.
+        </div>
       </CardContent>
     </Card>
   );
