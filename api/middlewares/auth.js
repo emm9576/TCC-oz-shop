@@ -21,7 +21,7 @@ const requireLogin = async (req, res, next) => {
       });
     }
 
-    // Verificar o token
+    // Tentar verificar o token atual
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       
@@ -50,24 +50,57 @@ const requireLogin = async (req, res, next) => {
       return next();
 
     } catch (tokenError) {
-      // Token expirado ou inválido
-      if (tokenError.name === 'TokenExpiredError') {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Token expirado. Faça login novamente.' 
-        });
-      } else if (tokenError.name === 'JsonWebTokenError') {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Token inválido. Faça login novamente.' 
-        });
+      // Token expirado ou inválido - tentar renovar
+      if (tokenError.name === 'TokenExpiredError' || tokenError.name === 'JsonWebTokenError') {
+        
+        // Decodificar token sem verificar (para pegar userId)
+        const decodedToken = jwt.decode(token);
+        
+        if (!decodedToken || !decodedToken.userId) {
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Token inválido' 
+          });
+        }
+
+        // Buscar usuário e verificar refresh token
+        const user = await User.findOne({ 
+          id: decodedToken.userId, 
+          deleted: { $ne: true },
+          refreshToken: { $ne: null }
+        }).select('-password');
+
+        if (!user || !user.refreshToken) {
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Sessão expirada. Faça login novamente' 
+          });
+        }
+
+        // Gerar novo access token
+        const newAccessToken = generateAccessToken(user);
+
+        // Adicionar novo token ao header da resposta
+        res.set('X-New-Token', newAccessToken);
+
+        // Adicionar dados do usuário à requisição
+        req.user = {
+          id: user.id,
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        };
+
+        console.log(`🔄 Token renovado automaticamente para usuário ${user.id}`);
+        return next();
+
       } else {
         throw tokenError; // Re-throw se for outro tipo de erro
       }
     }
 
   } catch (error) {
-    console.error('Erro no middleware de autenticação:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Erro interno do servidor', 
@@ -143,12 +176,26 @@ const loginUser = async (user) => {
   };
 };
 
-// Função para logout (revogar refresh token)
+// Função para logout (revogar refresh token) - CORRIGIDA
 const logoutUser = async (userId) => {
-  await User.findOneAndUpdate(
-    { id: userId }, 
-    { refreshToken: null }
-  );
+  try {
+    // Usar $unset em vez de definir como null para evitar conflitos de índice
+    const result = await User.findOneAndUpdate(
+      { id: userId }, 
+      { $unset: { refreshToken: 1 } }, // Remove o campo completamente
+      { new: true }
+    );
+
+    if (!result) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    console.log(`🚪 Logout realizado para usuário ${userId}`);
+    return result;
+  } catch (error) {
+    console.error(`❌ Erro no logout para usuário ${userId}:`, error);
+    throw error;
+  }
 };
 
 // Função para verificar token sem middleware (útil para casos específicos)
