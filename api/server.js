@@ -39,6 +39,36 @@ app.use('/api/orders', requireLogin, ordersRoutes);
 app.use('/api/buy', buyRoute);
 app.use('/api/account', accountRoute);
 
+// Health Check - Rota para verificar se o servidor está funcionando
+app.get('/api/health', (req, res) => {
+  const healthData = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    services: {
+      server: 'running',
+      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    }
+  };
+
+  // Verificar se há problemas
+  const isHealthy = mongoose.connection.readyState === 1;
+
+  if (isHealthy) {
+    res.status(200).json({
+      success: true,
+      message: 'Servidor funcionando normalmente',
+      data: healthData
+    });
+  } else {
+    res.status(503).json({
+      success: false,
+      message: 'Servidor com problemas',
+      data: healthData
+    });
+  }
+});
+
 // Rota raiz
 app.get('/', (req, res) => {
   res.json({ 

@@ -1,43 +1,155 @@
 // src/components/ApiStatus.jsx
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AlertCircle, CheckCircle, Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import apiService from '@/services/api';
 
 const ApiStatus = () => {
-  const [status, setStatus] = useState('checking'); // 'checking', 'connected', 'disconnected'
+  const [status, setStatus] = useState('connected'); // 'checking', 'connected', 'disconnected'
   const [error, setError] = useState(null);
   const [lastCheck, setLastCheck] = useState(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const lastSuccessfulRequest = useRef(null);
+  
+  // Pegar URL da API do .env
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+  const API_PORT = API_BASE_URL.split(':').pop() || '3000';
 
-  const checkApiConnection = async () => {
-    setStatus('checking');
+  const checkApiConnection = async (isManual = false) => {
+    if (isManual) {
+      setStatus('checking');
+    }
     setError(null);
     
     try {
-      // Tenta fazer uma requisição simples para verificar se a API está funcionando
-      // Usando endpoint de produtos que não requer autenticação
-      await apiService.getProducts({ limit: 1 });
+      // Usar uma requisição mais leve - apenas verificar se o servidor responde
+      const response = await fetch(`${API_BASE_URL}/health`, {
+        method: 'GET', // Apenas verifica se o endpoint existe, sem baixar dados
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000), // Timeout de 5 segundos
+      });
+
+      if (response.ok) {
+        setStatus('connected');
+        setError(null);
+        lastSuccessfulRequest.current = new Date();
+      } else {
+        throw new Error(`Servidor retornou status ${response.status}`);
+      }
       
-      setStatus('connected');
       setLastCheck(new Date());
     } catch (err) {
+      console.warn('API Status check failed:', err.message);
       setStatus('disconnected');
-      setError(err.message);
+      
+      // Classificar tipos de erro
+      let errorMessage = err.message;
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        errorMessage = 'Não foi possível conectar com o servidor';
+      } else if (err.name === 'TimeoutError') {
+        errorMessage = 'Timeout - servidor não respondeu em 5 segundos';
+      } else if (err.message.includes('ECONNREFUSED')) {
+        errorMessage = 'Conexão recusada - servidor pode estar desligado';
+      }
+      
+      setError(errorMessage);
       setLastCheck(new Date());
     }
   };
 
+  // Interceptar requisições da API para monitorar status
   useEffect(() => {
-    checkApiConnection();
+    // Salvar o fetch original
+    const originalFetch = window.fetch;
     
-    // Verificar a cada 30 segundos
-    const interval = setInterval(checkApiConnection, 30000);
-    
-    return () => clearInterval(interval);
+    // Interceptar todas as requisições fetch
+    window.fetch = async (...args) => {
+      try {
+        const response = await originalFetch(...args);
+        
+        // Se a requisição for para nossa API e for bem-sucedida
+        const url = args[0];
+        if (typeof url === 'string' && url.includes('/api/')) {
+          if (response.ok) {
+            // API está funcionando
+            if (status !== 'connected') {
+              setStatus('connected');
+              setError(null);
+              lastSuccessfulRequest.current = new Date();
+            }
+          } else if (response.status >= 500) {
+            // Erro do servidor
+            setStatus('disconnected');
+            setError(`Erro do servidor: ${response.status}`);
+          }
+        }
+        
+        return response;
+      } catch (err) {
+        // Se a requisição for para nossa API e falhar
+        const url = args[0];
+        if (typeof url === 'string' && url.includes('/api/')) {
+          setStatus('disconnected');
+          setError(err.message);
+        }
+        throw err;
+      }
+    };
+
+    // Restaurar fetch original quando o componente desmontar
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [status]);
+
+  // Monitorar status de conexão da internet
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Verificar API quando voltar online
+      setTimeout(() => checkApiConnection(), 1000);
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setStatus('disconnected');
+      setError('Sem conexão com a internet');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
+  // Verificação inicial
+  useEffect(() => {
+    checkApiConnection();
+  }, []);
+
+  // Monitorar mudanças de foco da janela para verificar reconexão
+  useEffect(() => {
+    const handleFocus = () => {
+      if (status === 'disconnected' && isOnline) {
+        checkApiConnection();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [status, isOnline]);
+
   const getStatusIcon = () => {
+    if (!isOnline) {
+      return <WifiOff className="h-4 w-4 text-red-600" />;
+    }
+
     switch (status) {
       case 'checking':
         return <Loader2 className="h-4 w-4 animate-spin" />;
@@ -46,36 +158,37 @@ const ApiStatus = () => {
       case 'disconnected':
         return <AlertCircle className="h-4 w-4 text-red-600" />;
       default:
-        return null;
+        return <Wifi className="h-4 w-4" />;
     }
   };
 
   const getStatusText = () => {
+    if (!isOnline) {
+      return 'Sem internet';
+    }
+
     switch (status) {
       case 'checking':
         return 'Verificando conexão...';
       case 'connected':
-        return 'API conectada';
+        return 'Servidor conectado';
       case 'disconnected':
-        return 'API desconectada';
+        return 'Servidor desconectado';
       default:
         return 'Status desconhecido';
     }
   };
 
   const getStatusVariant = () => {
-    switch (status) {
-      case 'connected':
-        return 'default';
-      case 'disconnected':
-        return 'destructive';
-      default:
-        return 'default';
+    if (!isOnline || status === 'disconnected') {
+      return 'destructive';
     }
+    return 'default';
   };
 
-  if (status === 'connected') {
-    return null; // Não mostrar quando está tudo OK
+  // Só mostrar quando há problema ou está verificando
+  if (status === 'connected' && isOnline) {
+    return null;
   }
 
   return (
@@ -83,14 +196,11 @@ const ApiStatus = () => {
       <Alert variant={getStatusVariant()}>
         {getStatusIcon()}
         <AlertDescription className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <div className="font-medium">{getStatusText()}</div>
             {error && (
               <div className="text-xs mt-1 opacity-80">
-                {error.includes('fetch') || error.includes('network') || error.includes('ECONNREFUSED') 
-                  ? 'Verifique se o servidor da API está rodando na porta 3000'
-                  : error
-                }
+                {error}
               </div>
             )}
             {lastCheck && (
@@ -98,31 +208,24 @@ const ApiStatus = () => {
                 Última verificação: {lastCheck.toLocaleTimeString()}
               </div>
             )}
+            {lastSuccessfulRequest.current && status === 'disconnected' && (
+              <div className="text-xs mt-1 opacity-60">
+                Última conexão: {lastSuccessfulRequest.current.toLocaleTimeString()}
+              </div>
+            )}
           </div>
           <Button
             variant="ghost"
             size="sm"
-            onClick={checkApiConnection}
-            disabled={status === 'checking'}
+            onClick={() => checkApiConnection(true)}
+            disabled={status === 'checking' || !isOnline}
             className="ml-2 p-1 h-6 w-6"
+            title="Verificar conexão manualmente"
           >
             <RefreshCw className="h-3 w-3" />
           </Button>
         </AlertDescription>
       </Alert>
-      
-      {status === 'disconnected' && (
-        <div className="mt-2 text-xs bg-yellow-50 border border-yellow-200 rounded-md p-3">
-          <div className="text-yellow-800 font-medium mb-1">
-            Para usar a aplicação completa:
-          </div>
-          <ol className="text-yellow-700 space-y-1 text-xs">
-            <li>1. Certifique-se que o servidor da API está rodando</li>
-            <li>2. Verifique se a porta 3000 está disponível</li>
-            <li>3. Confirme que o endpoint http://localhost:3000 está acessível</li>
-          </ol>
-        </div>
-      )}
     </div>
   );
 };
