@@ -7,14 +7,8 @@ const UserSchema = new mongoose.Schema({
         required: false // NÃO tem required: true - será gerado pelo middleware
     },
     name: { type: String, required: true, trim: true },
-    password: { type: String, required: true, select: false }, // select: false por padrão
-    email: { 
-        type: String, 
-        required: true, 
-        unique: true, 
-        lowercase: true,
-        trim: true
-    },
+    password: { type: String, required: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
     phone: { type: String, required: true },
     estado: { type: String, required: false },
     cidade: { type: String, required: false },
@@ -28,43 +22,31 @@ const UserSchema = new mongoose.Schema({
     },
     refreshToken: {
         type: String,
-        unique: true,
-        sparse: true // permite múltiplos null values quando não definido
+        default: null,
+        // REMOVIDO: unique: true - causa conflito com múltiplos null values
+        // sparse: true - não é mais necessário
     },
     createdAt: { type: Date, default: Date.now },
 
     // campo auxiliar para soft delete
     deleted: { type: Boolean, default: false, select: false }
 }, {
-    toJSON: { 
-        virtuals: true, 
-        transform: (_, ret) => {
-            // Remove campos sensíveis do JSON
-            delete ret.password;
-            delete ret.refreshToken;
-            delete ret.__v;
-            // se deleted for false, remove do objeto final
-            if (!ret.deleted) {
-                delete ret.deleted;
-            }
-            return ret;
+    toJSON: { virtuals: true, transform: (_, ret) => {
+        // se deleted for false, remove do objeto final
+        if (!ret.deleted) {
+            delete ret.deleted;
         }
-    },
-    toObject: { 
-        virtuals: true, 
-        transform: (_, ret) => {
-            delete ret.password;
-            delete ret.refreshToken;
-            delete ret.__v;
-            if (!ret.deleted) {
-                delete ret.deleted;
-            }
-            return ret;
+        return ret;
+    }},
+    toObject: { virtuals: true, transform: (_, ret) => {
+        if (!ret.deleted) {
+            delete ret.deleted;
         }
-    }
+        return ret;
+    }}
 });
 
-// Middleware para gerar ID sequencial (preenche lacunas) - ORIGINAL
+// Middleware para gerar ID sequencial (preenche lacunas)
 UserSchema.pre('save', async function(next) {
     if (this.isNew && !this.id) {
         try {
@@ -86,18 +68,10 @@ UserSchema.pre('save', async function(next) {
             return next(error);
         }
     }
-
-    // Gerar refreshToken se é um novo usuário e não tem refreshToken
-    if (this.isNew && !this.refreshToken) {
-        // Gerar um token único usando timestamp + random
-        this.refreshToken = `rt_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`;
-        console.log('🔑 RefreshToken gerado:', this.refreshToken);
-    }
-
     next();
 });
 
-// Middleware para "soft delete" - ORIGINAL
+// Middleware para "soft delete"
 UserSchema.pre('deleteOne', { document: true, query: false }, async function(next) {
     try {
         // zera os campos e marca como deletado

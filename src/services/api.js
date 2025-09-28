@@ -4,99 +4,16 @@ const API_BASE_URL = 'http://localhost:3000/api';
 class ApiService {
   constructor() {
     this.token = localStorage.getItem('token');
-    this.refreshToken = localStorage.getItem('refreshToken');
-    this.expiresIn = localStorage.getItem('expiresIn');
-    this.isRefreshing = false;
-    this.refreshSubscribers = [];
   }
 
-  // Verificar se o token está próximo de expirar (5 minutos antes)
-  isTokenExpiringSoon() {
-    if (!this.expiresIn) return false;
-    const expirationTime = parseInt(this.expiresIn);
-    const currentTime = Date.now();
-    const fiveMinutes = 5 * 60 * 1000; // 5 minutos em milissegundos
-    
-    return (expirationTime - currentTime) < fiveMinutes;
-  }
-
-  // Verificar se o token expirou
+  // Verificar se o token está expirado
   isTokenExpired() {
-    if (!this.expiresIn) return false;
-    return Date.now() >= parseInt(this.expiresIn);
-  }
-
-  // Adicionar subscriber para aguardar refresh
-  addRefreshSubscriber(callback) {
-    this.refreshSubscribers.push(callback);
-  }
-
-  // Notificar todos os subscribers que o token foi renovado
-  notifyRefreshSubscribers(newToken) {
-    this.refreshSubscribers.forEach(callback => callback(newToken));
-    this.refreshSubscribers = [];
-  }
-
-  // Renovar token automaticamente
-  async refreshTokenAutomatically() {
-    if (this.isRefreshing) {
-      // Se já estamos renovando, aguardar
-      return new Promise((resolve) => {
-        this.addRefreshSubscriber((newToken) => {
-          resolve(newToken);
-        });
-      });
-    }
-
-    if (!this.refreshToken) {
-      throw new Error('Refresh token não disponível');
-    }
-
-    this.isRefreshing = true;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/account/refresh-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          refreshToken: this.refreshToken
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Erro ao renovar token');
-      }
-
-      // Salvar novos tokens
-      this.setTokens({
-        accessToken: data.data.accessToken,
-        refreshToken: data.data.refreshToken,
-        expiresIn: data.data.expiresIn
-      });
-
-      // Notificar subscribers
-      this.notifyRefreshSubscribers(data.data.accessToken);
-
-      console.log('🔄 Token renovado automaticamente');
-      return data.data.accessToken;
-
-    } catch (error) {
-      console.error('Erro ao renovar token:', error);
-      
-      // Se falhar, limpar tokens e fazer logout
-      this.clearTokens();
-      
-      // Disparar evento customizado para o AuthContext
-      window.dispatchEvent(new CustomEvent('tokenRefreshFailed'));
-      
-      throw error;
-    } finally {
-      this.isRefreshing = false;
-    }
+    const tokenExpiry = localStorage.getItem('tokenExpiry');
+    if (!tokenExpiry) return true;
+    
+    const now = new Date();
+    const expiryDate = new Date(tokenExpiry);
+    return now >= expiryDate;
   }
 
   // Configurar cabeçalhos padrão
@@ -105,7 +22,7 @@ class ApiService {
       'Content-Type': 'application/json',
     };
 
-    if (includeAuth && this.token) {
+    if (includeAuth && this.token && !this.isTokenExpired()) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
@@ -114,16 +31,6 @@ class ApiService {
 
   // Método genérico para fazer requisições
   async request(endpoint, options = {}) {
-    // Verificar se precisa renovar o token antes da requisição
-    if (options.requireAuth !== false && (this.isTokenExpired() || this.isTokenExpiringSoon())) {
-      try {
-        await this.refreshTokenAutomatically();
-      } catch (error) {
-        // Se falhar ao renovar, a função já limpa os tokens
-        throw new Error('Sessão expirada. Faça login novamente.');
-      }
-    }
-
     const url = `${API_BASE_URL}${endpoint}`;
     
     const config = {
@@ -137,58 +44,49 @@ class ApiService {
     try {
       const response = await fetch(url, config);
       
-      // Verificar se há um novo token no header da resposta
+      // Verificar se há um novo token no header de resposta (refresh automático)
       const newToken = response.headers.get('X-New-Token');
       if (newToken) {
         this.setToken(newToken);
-        // Atualizar o timestamp de expiração
-        this.setExpiresIn(Date.now() + (24 * 60 * 60 * 1000)); // 24 horas
-        console.log('🔄 Token atualizado via header');
+        
+        // Atualizar também a data de expiração
+        const newExpiry = new Date();
+        newExpiry.setDate(newExpiry.getDate() + 1); // 1 dia
+        localStorage.setItem('tokenExpiry', newExpiry.toISOString());
       }
-
+      
       const data = await response.json();
 
       if (!response.ok) {
-        // Se for erro 401, tentar renovar token uma vez
-        if (response.status === 401 && options.requireAuth !== false && !options._isRetry) {
-          try {
-            await this.refreshTokenAutomatically();
-            // Tentar novamente com o novo token
-            return this.request(endpoint, { ...options, _isRetry: true });
-          } catch (refreshError) {
-            // Se falhar, propagar o erro original
-            throw new Error(data.message || 'Erro na requisição');
+        // Se erro 401, token pode estar expirado
+        if (response.status === 401) {
+          this.setToken(null);
+          localStorage.removeItem('user');
+          localStorage.removeItem('tokenExpiry');
+          
+          // Se não for uma rota de login/signup, rejeitar com erro específico
+          if (!endpoint.includes('/login') && !endpoint.includes('/signup')) {
+            throw new Error('Sessão expirada. Faça login novamente.');
           }
         }
         
-        throw new Error(data.message || 'Erro na requisição');
+        throw new Error(data.message || `Erro HTTP ${response.status}`);
       }
 
       return data;
     } catch (error) {
       console.error('API Request Error:', error);
+      
+      // Tratar erros de rede
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        throw new Error('Erro de conexão. Verifique se o servidor está rodando.');
+      }
+      
       throw error;
     }
   }
 
-  // Salvar tokens no localStorage
-  setTokens({ accessToken, refreshToken, expiresIn }) {
-    this.token = accessToken;
-    this.refreshToken = refreshToken;
-    this.expiresIn = expiresIn;
-
-    if (accessToken) {
-      localStorage.setItem('token', accessToken);
-    }
-    if (refreshToken) {
-      localStorage.setItem('refreshToken', refreshToken);
-    }
-    if (expiresIn) {
-      localStorage.setItem('expiresIn', expiresIn.toString());
-    }
-  }
-
-  // Atualizar apenas o access token
+  // Atualizar token
   setToken(token) {
     this.token = token;
     if (token) {
@@ -196,23 +94,6 @@ class ApiService {
     } else {
       localStorage.removeItem('token');
     }
-  }
-
-  // Atualizar timestamp de expiração
-  setExpiresIn(timestamp) {
-    this.expiresIn = timestamp;
-    localStorage.setItem('expiresIn', timestamp.toString());
-  }
-
-  // Limpar todos os tokens
-  clearTokens() {
-    this.token = null;
-    this.refreshToken = null;
-    this.expiresIn = null;
-    
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('expiresIn');
   }
 
   // ========================
@@ -234,19 +115,11 @@ class ApiService {
       requireAuth: false,
     });
 
-    if (response.data) {
-      this.setTokens({
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken,
-        expiresIn: response.data.expiresIn
-      });
+    if (response.token) {
+      this.setToken(response.token);
     }
 
     return response;
-  }
-
-  async refreshTokenManually() {
-    return this.refreshTokenAutomatically();
   }
 
   async logout() {
@@ -255,7 +128,7 @@ class ApiService {
         method: 'POST',
       });
     } finally {
-      this.clearTokens();
+      this.setToken(null);
     }
   }
 
@@ -265,7 +138,7 @@ class ApiService {
       body: JSON.stringify({ password }),
     });
     
-    this.clearTokens();
+    this.setToken(null);
     return response;
   }
 

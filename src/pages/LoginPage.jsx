@@ -12,7 +12,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login, loading: authLoading } = useAuth();
+  const { login } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -29,12 +29,11 @@ const LoginPage = () => {
       return;
     }
 
-    // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       toast({
         title: "Erro de validação",
-        description: "Por favor, insira um email válido.",
+        description: "Por favor, digite um email válido.",
         variant: "destructive",
         duration: 3000,
       });
@@ -44,17 +43,16 @@ const LoginPage = () => {
     setIsLoading(true);
     
     try {
-      const result = await login({ email, password });
+      const result = await login(email.trim(), password.trim());
       
       if (result.success) {
-        navigate('/');
+        navigate('/', { replace: true });
       }
-      // Se não foi sucesso, o toast de erro já foi mostrado no AuthContext
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error('Erro inesperado no login:', error);
       toast({
-        title: "Erro no login",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
+        title: "Erro inesperado",
+        description: "Algo deu errado. Tente novamente.",
         variant: "destructive",
         duration: 3000,
       });
@@ -62,14 +60,6 @@ const LoginPage = () => {
       setIsLoading(false);
     }
   };
-
-  // Se já estiver autenticado, redirecionar
-  React.useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token && !authLoading) {
-      navigate('/');
-    }
-  }, [navigate, authLoading]);
 
   return (
     <div className="container mx-auto px-4 py-16">
@@ -102,7 +92,7 @@ const LoginPage = () => {
                     className="pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading || authLoading}
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -125,7 +115,7 @@ const LoginPage = () => {
                     className="pl-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading || authLoading}
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -134,9 +124,9 @@ const LoginPage = () => {
                 type="submit" 
                 className="w-full" 
                 size="lg"
-                disabled={isLoading || authLoading}
+                disabled={isLoading}
               >
-                {isLoading || authLoading ? (
+                {isLoading ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent"></div>
                     Entrando...
@@ -153,23 +143,9 @@ const LoginPage = () => {
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Não tem uma conta?{' '}
-                <Link 
-                  to="/cadastro" 
-                  className="text-primary hover:underline font-medium"
-                >
+                <Link to="/cadastro" className="text-primary hover:underline font-medium">
                   Cadastre-se
                 </Link>
-              </p>
-            </div>
-
-            {/* Informações de teste para desenvolvimento */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="text-sm font-semibold text-blue-800 mb-2">
-                🔧 Para testes (ambiente de desenvolvimento)
-              </h3>
-              <p className="text-sm text-blue-700">
-                Crie uma conta primeiro usando o botão "Cadastre-se" acima, 
-                ou use uma conta existente se já tiver criado uma.
               </p>
             </div>
           </div>
