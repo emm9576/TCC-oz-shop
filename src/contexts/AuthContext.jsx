@@ -1,7 +1,5 @@
-// src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import apiService from '@/services/api';
 
 const AuthContext = createContext();
 
@@ -12,135 +10,184 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Verificar se há um token válido e carregar dados do usuário
-  useEffect(() => {
-    const initializeAuth = async () => {
-      const token = localStorage.getItem('token');
-      
-      if (token) {
-        try {
-          // Tentar obter dados do usuário atual
-          const response = await apiService.getMe();
-          if (response.success) {
-            setUser(response.data);
-          }
-        } catch (error) {
-          console.error('Erro ao carregar usuário:', error);
-          // Token inválido ou expirado, remover
-          localStorage.removeItem('token');
-          apiService.setToken(null);
-        }
-      }
-      
-      setLoading(false);
-    };
+  // Base URL da API
+  const API_BASE_URL = 'http://localhost:3000/api';
 
-    initializeAuth();
+  // Carregar usuário do localStorage quando o componente montar
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    
+    if (storedUser && token) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Erro ao carregar o usuário:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
+    }
+    setLoading(false);
   }, []);
 
-  const login = async (credentials) => {
+  const login = async (email, password) => {
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      const response = await apiService.login(credentials);
-      
-      if (response.success) {
-        setUser(response.data);
+      const response = await fetch(`${API_BASE_URL}/account/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUser(data.data);
+        localStorage.setItem('user', JSON.stringify(data.data));
+        localStorage.setItem('token', data.token);
         
         toast({
           title: "Login realizado com sucesso",
-          description: `Bem-vindo(a), ${response.data.name}!`,
+          description: `Bem-vindo(a), ${data.data.name}!`,
           duration: 3000,
         });
         
         return { success: true };
+      } else {
+        toast({
+          title: "Erro no login",
+          description: data.message,
+          variant: "destructive",
+          duration: 3000,
+        });
+        return { success: false, message: data.message };
       }
-      
-      return { success: false, message: response.message };
     } catch (error) {
-      const errorMessage = error.message || 'Erro ao fazer login';
-      
+      console.error('Erro no login:', error);
       toast({
         title: "Erro no login",
-        description: errorMessage,
+        description: "Erro de conexão com o servidor.",
         variant: "destructive",
         duration: 3000,
       });
-      
-      return { success: false, message: errorMessage };
+      return { success: false, message: "Erro de conexão" };
     } finally {
       setLoading(false);
     }
   };
 
   const register = async (userData) => {
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      const response = await apiService.signup(userData);
-      
-      if (response.success) {
-        // Após criar a conta, fazer login automaticamente
-        const loginResponse = await apiService.login({
-          email: userData.email,
-          password: userData.password
+      const response = await fetch(`${API_BASE_URL}/account/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUser(data.data);
+        localStorage.setItem('user', JSON.stringify(data.data));
+        
+        toast({
+          title: "Cadastro realizado com sucesso",
+          description: "Sua conta foi criada com sucesso!",
+          duration: 3000,
         });
         
-        if (loginResponse.success) {
-          setUser(loginResponse.data);
-          
-          toast({
-            title: "Cadastro realizado com sucesso",
-            description: "Sua conta foi criada e você já está logado.",
-            duration: 3000,
-          });
-          
-          return { success: true };
-        }
+        return { success: true };
+      } else {
+        toast({
+          title: "Erro no cadastro",
+          description: data.message,
+          variant: "destructive",
+          duration: 3000,
+        });
+        return { success: false, message: data.message };
       }
-      
-      return { success: false, message: response.message };
     } catch (error) {
-      const errorMessage = error.message || 'Erro ao criar conta';
-      
+      console.error('Erro no cadastro:', error);
       toast({
         title: "Erro no cadastro",
-        description: errorMessage,
+        description: "Erro de conexão com o servidor.",
         variant: "destructive",
         duration: 3000,
       });
-      
-      return { success: false, message: errorMessage };
+      return { success: false, message: "Erro de conexão" };
     } finally {
       setLoading(false);
     }
   };
 
   const logout = async () => {
-    try {
-      await apiService.logout();
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-    } finally {
-      setUser(null);
-      
-      toast({
-        title: "Logout realizado",
-        description: "Você saiu da sua conta.",
-        duration: 3000,
-      });
+    const token = localStorage.getItem('token');
+    
+    // Se tiver token, tentar fazer logout na API
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/account/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (error) {
+        console.error('Erro no logout da API:', error);
+      }
     }
+    
+    setUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    
+    toast({
+      title: "Logout realizado",
+      description: "Você saiu da sua conta.",
+      duration: 3000,
+    });
   };
 
   const updateProfile = async (updatedData) => {
-    try {
-      if (!user?.id) {
-        throw new Error('Usuário não encontrado');
-      }
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para atualizar o perfil.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return { success: false };
+    }
 
-      const response = await apiService.updateUser(user.id, updatedData);
-      
-      if (response.success) {
-        const updatedUser = { ...user, ...response.data };
+    setLoading(true);
+    
+    try {
+      // Assumindo que existe uma rota para atualizar perfil
+      const response = await fetch(`${API_BASE_URL}/account/update-profile`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const updatedUser = { ...user, ...updatedData };
         setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
         
         toast({
           title: "Perfil atualizado",
@@ -149,65 +196,26 @@ export const AuthProvider = ({ children }) => {
         });
         
         return { success: true };
-      }
-      
-      return { success: false, message: response.message };
-    } catch (error) {
-      const errorMessage = error.message || 'Erro ao atualizar perfil';
-      
-      toast({
-        title: "Erro ao atualizar perfil",
-        description: errorMessage,
-        variant: "destructive",
-        duration: 3000,
-      });
-      
-      return { success: false, message: errorMessage };
-    }
-  };
-
-  const deleteAccount = async (password) => {
-    try {
-      const response = await apiService.deleteAccount(password);
-      
-      if (response.success) {
-        setUser(null);
-        
+      } else {
         toast({
-          title: "Conta deletada",
-          description: "Sua conta foi deletada com sucesso.",
+          title: "Erro ao atualizar perfil",
+          description: data.message,
+          variant: "destructive",
           duration: 3000,
         });
-        
-        return { success: true };
+        return { success: false, message: data.message };
       }
-      
-      return { success: false, message: response.message };
     } catch (error) {
-      const errorMessage = error.message || 'Erro ao deletar conta';
-      
+      console.error('Erro ao atualizar perfil:', error);
       toast({
-        title: "Erro ao deletar conta",
-        description: errorMessage,
+        title: "Erro ao atualizar perfil",
+        description: "Erro de conexão com o servidor.",
         variant: "destructive",
         duration: 3000,
       });
-      
-      return { success: false, message: errorMessage };
-    }
-  };
-
-  const refreshUserData = async () => {
-    try {
-      const response = await apiService.getMe();
-      if (response.success) {
-        setUser(response.data);
-        return { success: true };
-      }
-      return { success: false, message: response.message };
-    } catch (error) {
-      console.error('Erro ao atualizar dados do usuário:', error);
-      return { success: false, message: error.message };
+      return { success: false, message: "Erro de conexão" };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -219,8 +227,6 @@ export const AuthProvider = ({ children }) => {
       register,
       logout,
       updateProfile,
-      deleteAccount,
-      refreshUserData,
       isAuthenticated: !!user
     }}>
       {children}
