@@ -5,7 +5,6 @@ import { ProductsProvider } from '@/contexts/ProductsContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { Toaster } from '@/components/ui/toaster';
 import ApiStatus from '@/components/ApiStatus';
-import TokenStatus from '@/components/TokenStatus';
 
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -26,14 +25,6 @@ function App() {
           <CartProvider>
             <div className="flex flex-col min-h-screen">
               <Navbar />
-              
-              {/* Token Status - Apenas para desenvolvimento */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="fixed bottom-4 right-4 z-50">
-                  <TokenStatus className="w-80 shadow-lg" />
-                </div>
-              )}
-              
               <main className="flex-grow">
                 <Routes>
                   <Route path="/" element={<HomePage />} />
