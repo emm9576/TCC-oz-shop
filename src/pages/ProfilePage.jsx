@@ -22,14 +22,15 @@ const ProfilePage = () => {
     name: '',
     email: '',
     phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: ''
+    rua: '',
+    cidade: '',
+    estado: '',
+    cep: ''
   });
   
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [myProducts, setMyProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   
@@ -37,19 +38,50 @@ const ProfilePage = () => {
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
-    } else if (user) {
-      // Preencher dados do perfil
-      setProfileData({
-        name: user.name || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        address: user.address || '',
-        city: user.city || '',
-        state: user.state || '',
-        zipCode: user.zipCode || ''
-      });
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, navigate]);
+
+  // Buscar dados do perfil da API
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!isAuthenticated) return;
+      
+      try {
+        setIsLoadingProfile(true);
+        const response = await apiService.getMe();
+        
+        if (response.success && response.data) {
+          const userData = response.data;
+          setProfileData({
+            name: userData.name || '',
+            email: userData.email || '',
+            phone: userData.phone || '',
+            rua: userData.rua || '',
+            cidade: userData.cidade || '',
+            estado: userData.estado || '',
+            cep: userData.cep || ''
+          });
+        } else {
+          toast({
+            title: "Erro ao carregar perfil",
+            description: response.message || "Não foi possível carregar suas informações",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados do perfil:', error);
+        toast({
+          title: "Erro ao carregar perfil",
+          description: error.message || "Ocorreu um erro inesperado",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    fetchProfileData();
+  }, [isAuthenticated, toast]);
 
   // Buscar produtos do usuário
   useEffect(() => {
@@ -92,19 +124,41 @@ const ProfilePage = () => {
     }));
   };
   
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    
     setIsSaving(true);
     
-    // Simulando atualização
-    setTimeout(() => {
-      updateProfile(profileData);
-      setIsEditing(false);
-      setIsSaving(false);
+    try {
+      const result = await updateProfile(profileData);
+      
+      if (result.success) {
+        setIsEditing(false);
+        // Recarregar dados do perfil após atualização
+        const response = await apiService.getMe();
+        if (response.success && response.data) {
+          const userData = response.data;
+          setProfileData({
+            name: userData.name || '',
+            email: userData.email || '',
+            phone: userData.phone || '',
+            rua: userData.rua || '',
+            cidade: userData.cidade || '',
+            estado: userData.estado || '',
+            cep: userData.cep || ''
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao salvar perfil:', error);
       toast({
-        title: "Perfil atualizado",
-        description: "Suas informações foram salvas com sucesso.",
+        title: "Erro ao salvar perfil",
+        description: error.message || "Ocorreu um erro inesperado",
+        variant: "destructive",
       });
-    }, 1000);
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   const handleLogout = () => {
@@ -149,8 +203,23 @@ const ProfilePage = () => {
   };
 
   const handleEditProduct = (productId) => {
-    // Aqui você pode navegar para uma página de edição ou abrir um modal
     navigate(`/vender?edit=${productId}`);
+  };
+
+  // Função para formatar data
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Data não disponível';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return 'Data inválida';
+    }
   };
   
   // Dados simulados de pedidos
@@ -212,7 +281,7 @@ const ProfilePage = () => {
                   <h3 className="text-xl font-semibold">{user.name}</h3>
                   <p className="text-gray-500">{user.email}</p>
                   <p className="text-sm text-gray-500 mt-1">
-                    Membro desde {new Date(user.createdAt).toLocaleDateString()}
+                    Membro desde {formatDate(user.createdAt)}
                   </p>
                 </div>
                 
@@ -220,6 +289,7 @@ const ProfilePage = () => {
                   variant="outline" 
                   className="w-full mb-2"
                   onClick={() => setIsEditing(!isEditing)}
+                  disabled={isLoadingProfile}
                 >
                   {isEditing ? 'Cancelar Edição' : 'Editar Perfil'}
                 </Button>
@@ -243,18 +313,80 @@ const ProfilePage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {isLoadingProfile ? (
+                  <div className="text-center py-8">
+                    <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-r-transparent mb-4"></div>
+                    <p className="text-gray-500">Carregando informações...</p>
+                  </div>
+                ) : (
+                  <form className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Nome Completo</Label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <User className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <Input
+                            id="name"
+                            name="name"
+                            value={profileData.name}
+                            onChange={handleChange}
+                            className="pl-10"
+                            disabled={!isEditing}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <Mail className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <Input
+                            id="email"
+                            name="email"
+                            value={profileData.email}
+                            onChange={handleChange}
+                            className="pl-10"
+                            disabled={!isEditing}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Telefone</Label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <Phone className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <Input
+                            id="phone"
+                            name="phone"
+                            value={profileData.phone}
+                            onChange={handleChange}
+                            className="pl-10"
+                            disabled={!isEditing}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <h3 className="text-lg font-medium">Endereço</h3>
+                    
                     <div className="space-y-2">
-                      <Label htmlFor="name">Nome Completo</Label>
+                      <Label htmlFor="rua">Rua/Endereço</Label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                          <User className="h-5 w-5 text-gray-400" />
+                          <MapPin className="h-5 w-5 text-gray-400" />
                         </div>
                         <Input
-                          id="name"
-                          name="name"
-                          value={profileData.name}
+                          id="rua"
+                          name="rua"
+                          value={profileData.rua}
                           onChange={handleChange}
                           className="pl-10"
                           disabled={!isEditing}
@@ -262,99 +394,44 @@ const ProfilePage = () => {
                       </div>
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                          <Mail className="h-5 w-5 text-gray-400" />
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cidade">Cidade</Label>
                         <Input
-                          id="email"
-                          name="email"
-                          value={profileData.email}
+                          id="cidade"
+                          name="cidade"
+                          value={profileData.cidade}
                           onChange={handleChange}
-                          className="pl-10"
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="estado">Estado</Label>
+                        <Input
+                          id="estado"
+                          name="estado"
+                          value={profileData.estado}
+                          onChange={handleChange}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="cep">CEP</Label>
+                        <Input
+                          id="cep"
+                          name="cep"
+                          value={profileData.cep}
+                          onChange={handleChange}
                           disabled={!isEditing}
                         />
                       </div>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Telefone</Label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                          <Phone className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <Input
-                          id="phone"
-                          name="phone"
-                          value={profileData.phone}
-                          onChange={handleChange}
-                          className="pl-10"
-                          disabled={!isEditing}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <h3 className="text-lg font-medium">Endereço</h3>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Endereço</Label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <MapPin className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <Input
-                        id="address"
-                        name="address"
-                        value={profileData.address}
-                        onChange={handleChange}
-                        className="pl-10"
-                        disabled={!isEditing}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="city">Cidade</Label>
-                      <Input
-                        id="city"
-                        name="city"
-                        value={profileData.city}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="state">Estado</Label>
-                      <Input
-                        id="state"
-                        name="state"
-                        value={profileData.state}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="zipCode">CEP</Label>
-                      <Input
-                        id="zipCode"
-                        name="zipCode"
-                        value={profileData.zipCode}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                  </div>
-                </form>
+                  </form>
+                )}
               </CardContent>
-              {isEditing && (
+              {isEditing && !isLoadingProfile && (
                 <CardFooter>
                   <Button 
                     onClick={handleSaveProfile}

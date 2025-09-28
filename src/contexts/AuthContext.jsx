@@ -159,7 +159,7 @@ export const AuthProvider = ({ children }) => {
     try {
       if (!user) throw new Error('Usuário não logado');
       
-      const response = await apiService.updateUser(user.id, updatedData);
+      const response = await apiService.updateMe(updatedData);
       
       if (response.success && response.data) {
         const updatedUser = { ...user, ...response.data };
