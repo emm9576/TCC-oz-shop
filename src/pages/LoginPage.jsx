@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import apiService from '@/services/api';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -29,39 +28,33 @@ const LoginPage = () => {
       });
       return;
     }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        title: "Erro de validação",
+        description: "Por favor, insira um email válido.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
     
     setIsLoading(true);
     
     try {
-      // Fazer login através da API
-      const response = await apiService.login({
-        email: email.trim(),
-        password: password.trim()
-      });
-
-      if (response.success) {
-        // Login bem-sucedido
-        login(response.data);
-        toast({
-          title: "Login realizado com sucesso",
-          description: `Bem-vindo(a), ${response.data.name}!`,
-          duration: 3000,
-        });
+      const result = await login({ email, password });
+      
+      if (result.success) {
         navigate('/');
-      } else {
-        // Login falhou
-        toast({
-          title: "Erro de autenticação",
-          description: response.message || "Email ou senha incorretos.",
-          variant: "destructive",
-          duration: 3000,
-        });
       }
+      // Se não foi sucesso, o toast de erro já foi mostrado no AuthContext
     } catch (error) {
       console.error('Erro no login:', error);
       toast({
-        title: "Erro de autenticação",
-        description: error.message || "Erro ao fazer login. Tente novamente.",
+        title: "Erro no login",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
         variant: "destructive",
         duration: 3000,
       });
@@ -69,6 +62,14 @@ const LoginPage = () => {
       setIsLoading(false);
     }
   };
+
+  // Se já estiver autenticado, redirecionar
+  React.useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && !authLoading) {
+      navigate('/');
+    }
+  }, [navigate, authLoading]);
 
   return (
     <div className="container mx-auto px-4 py-16">
@@ -101,7 +102,7 @@ const LoginPage = () => {
                     className="pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
+                    disabled={isLoading || authLoading}
                   />
                 </div>
               </div>
@@ -124,7 +125,7 @@ const LoginPage = () => {
                     className="pl-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
+                    disabled={isLoading || authLoading}
                   />
                 </div>
               </div>
@@ -133,15 +134,18 @@ const LoginPage = () => {
                 type="submit" 
                 className="w-full" 
                 size="lg"
-                disabled={isLoading}
+                disabled={isLoading || authLoading}
               >
-                {isLoading ? (
+                {isLoading || authLoading ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent"></div>
                     Entrando...
                   </>
                 ) : (
-                  'Entrar'
+                  <>
+                    Entrar
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
                 )}
               </Button>
             </form>
@@ -149,9 +153,23 @@ const LoginPage = () => {
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Não tem uma conta?{' '}
-                <Link to="/cadastro" className="text-primary hover:underline font-medium">
+                <Link 
+                  to="/cadastro" 
+                  className="text-primary hover:underline font-medium"
+                >
                   Cadastre-se
                 </Link>
+              </p>
+            </div>
+
+            {/* Informações de teste para desenvolvimento */}
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="text-sm font-semibold text-blue-800 mb-2">
+                🔧 Para testes (ambiente de desenvolvimento)
+              </h3>
+              <p className="text-sm text-blue-700">
+                Crie uma conta primeiro usando o botão "Cadastre-se" acima, 
+                ou use uma conta existente se já tiver criado uma.
               </p>
             </div>
           </div>

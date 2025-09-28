@@ -1,6 +1,6 @@
 import express from 'express';
 import User from '../../models/user.js';
-import { loginUser, logoutUser, requireLogin } from '../middlewares/auth.js';
+import { loginUser, logoutUser, requireLogin, refreshToken } from '../middlewares/auth.js';
 
 const router = express.Router();
 
@@ -40,21 +40,9 @@ router.post('/signup', async (req, res) => {
       });
     }
 
-    // Normalizar email
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // CORREÇÃO: Verificar se email já existe, excluindo usuários deletados
-    const existingUser = await User.findOne({ 
-      email: normalizedEmail,
-      $or: [
-        { deleted: { $exists: false } }, // Campo deleted não existe
-        { deleted: false },              // Campo deleted é false
-        { deleted: null }                // Campo deleted é null
-      ]
-    });
-
+    // Verificar se email já existe
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      console.log('❌ Email já cadastrado:', normalizedEmail);
       return res.status(400).json({ 
         success: false, 
         message: 'Email já cadastrado' 
@@ -81,26 +69,22 @@ router.post('/signup', async (req, res) => {
       });
     }
 
-    console.log('✅ Criando usuário com email:', normalizedEmail);
-
     // Criar novo usuário
     const newUser = new User({
       name: name.trim(),
-      email: normalizedEmail,
+      email: email.toLowerCase().trim(),
       password: password.trim(),
       phone: phone.trim(),
       estado: estado ? estado.trim() : undefined,
       cidade: cidade ? cidade.trim() : undefined,
       rua: rua ? rua.trim() : undefined,
-      cep: cep ? cep.trim() : undefined,
-      deleted: false // Garantir que o campo deleted seja sempre definido
+      cep: cep ? cep.trim() : undefined
     });
 
-    const savedUser = await newUser.save();
-    console.log('✅ Usuário criado com sucesso:', savedUser.email);
+    await newUser.save();
     
     // Retornar usuário sem a senha
-    const userResponse = { ...savedUser.toObject() };
+    const userResponse = { ...newUser.toObject() };
     delete userResponse.password;
     
     res.status(201).json({ 
@@ -110,8 +94,6 @@ router.post('/signup', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro no signup:', error);
-    
     // Tratar erros específicos do MongoDB
     if (error.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors).map(err => err.message);
@@ -122,28 +104,17 @@ router.post('/signup', async (req, res) => {
       });
     }
     
-    // Erro de duplicação (índice único)
     if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern || {})[0] || 'campo';
-      console.log('❌ Erro de duplicação:', error.keyValue);
-      
-      if (field === 'email') {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Email já cadastrado' 
-        });
-      }
-      
       return res.status(400).json({ 
         success: false, 
-        message: `${field} já está em uso` 
+        message: 'Email já cadastrado' 
       });
     }
 
     res.status(500).json({ 
       success: false, 
       message: 'Erro interno do servidor', 
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: error.message 
     });
   }
 });
@@ -169,17 +140,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Normalizar email e buscar usuário (incluindo senha para verificação)
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ 
-      email: normalizedEmail,
-      $or: [
-        { deleted: { $exists: false } },
-        { deleted: false },
-        { deleted: null }
-      ]
-    }).select('+password');
-
+    // Buscar usuário por email (incluindo senha para verificação)
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({ 
         success: false, 
@@ -201,16 +163,53 @@ router.post('/login', async (req, res) => {
     res.json({ 
       success: true, 
       message: 'Login realizado com sucesso!', 
-      data: loginResult.user,
-      token: loginResult.accessToken
+      data: {
+        user: loginResult.user,
+        accessToken: loginResult.accessToken,
+        refreshToken: loginResult.refreshToken,
+        expiresIn: Date.now() + (24 * 60 * 60 * 1000) // 24 horas em timestamp
+      }
     });
 
   } catch (error) {
-    console.error('❌ Erro no login:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Erro interno do servidor', 
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: error.message 
+    });
+  }
+});
+
+// POST - Refresh Token
+router.post('/refresh-token', async (req, res) => {
+  try {
+    const { refreshToken: refreshTokenValue } = req.body;
+
+    if (!refreshTokenValue) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token é obrigatório'
+      });
+    }
+
+    // Renovar tokens
+    const result = await refreshToken(refreshTokenValue);
+
+    res.json({
+      success: true,
+      message: 'Token renovado com sucesso!',
+      data: {
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: Date.now() + (24 * 60 * 60 * 1000) // 24 horas em timestamp
+      }
+    });
+
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: error.message || 'Erro ao renovar token'
     });
   }
 });
@@ -248,13 +247,11 @@ router.delete('/delete-account', requireLogin, async (req, res) => {
       });
     }
 
-    // Realizar soft delete com timestamp único para evitar conflitos
-    const deletedTimestamp = Date.now();
+    // Realizar soft delete
     const updates = {
       $set: { 
         deleted: true,
-        deletedAt: new Date(),
-        email: `deleted_${deletedTimestamp}_${user.email}` // Email único para permitir recadastro
+        email: `deleted_${Date.now()}_${user.email}` // Evitar conflito de email único
       },
       $unset: {
         name: "",
@@ -275,11 +272,10 @@ router.delete('/delete-account', requireLogin, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro ao deletar conta:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Erro interno do servidor', 
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: error.message 
     });
   }
 });
@@ -294,11 +290,10 @@ router.post('/logout', requireLogin, async (req, res) => {
       message: 'Logout realizado com sucesso!' 
     });
   } catch (error) {
-    console.error('❌ Erro no logout:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Erro interno do servidor', 
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: error.message 
     });
   }
 });
@@ -319,69 +314,6 @@ router.post('/make-admin', async (req, res) => {
   );
   
   res.json({ message: 'Usuário promovido a admin!', user });
-});
-
-// ROTA DE DEBUG - Remova em produção
-router.get('/debug/users', async (req, res) => {
-  try {
-    const users = await User.find({}).select('-password');
-    res.json({ users });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ROTA DE DEBUG - Limpar IDs duplicados - Remova em produção  
-router.post('/debug/cleanup', async (req, res) => {
-  try {
-    // Remover usuários deletados completamente
-    const deletedUsers = await User.deleteMany({ deleted: true });
-    
-    // Encontrar e remover IDs duplicados
-    const users = await User.find({}).sort({ createdAt: 1 });
-    const seenIds = new Set();
-    const duplicatesToRemove = [];
-    
-    for (const user of users) {
-      if (seenIds.has(user.id)) {
-        duplicatesToRemove.push(user._id);
-      } else {
-        seenIds.add(user.id);
-      }
-    }
-    
-    const removedDuplicates = await User.deleteMany({ 
-      _id: { $in: duplicatesToRemove } 
-    });
-    
-    res.json({ 
-      message: 'Cleanup realizado', 
-      deletedCount: deletedUsers.deletedCount,
-      duplicatesRemoved: removedDuplicates.deletedCount,
-      remainingUsers: await User.countDocuments({})
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ROTA DE DEBUG - Resetar IDs sequenciais
-router.post('/debug/reset-ids', async (req, res) => {
-  try {
-    const users = await User.find({}).sort({ createdAt: 1 });
-    
-    for (let i = 0; i < users.length; i++) {
-      users[i].id = (i + 1).toString();
-      await users[i].save({ validateBeforeSave: false });
-    }
-    
-    res.json({ 
-      message: 'IDs resetados com sucesso',
-      totalUsers: users.length 
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
 export default router;

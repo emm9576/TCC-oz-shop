@@ -167,6 +167,7 @@ const loginUser = async (user) => {
 
   return {
     accessToken,
+    refreshToken,
     user: {
       id: user.id,
       name: user.name,
@@ -176,26 +177,50 @@ const loginUser = async (user) => {
   };
 };
 
-// Função para logout (revogar refresh token) - CORRIGIDA
-const logoutUser = async (userId) => {
+// Nova função para refresh do token usando refresh token
+const refreshToken = async (refreshTokenValue) => {
   try {
-    // Usar $unset em vez de definir como null para evitar conflitos de índice
-    const result = await User.findOneAndUpdate(
-      { id: userId }, 
-      { $unset: { refreshToken: 1 } }, // Remove o campo completamente
-      { new: true }
-    );
+    // Buscar usuário pelo refresh token
+    const user = await User.findOne({ 
+      refreshToken: refreshTokenValue,
+      deleted: { $ne: true }
+    }).select('-password');
 
-    if (!result) {
-      throw new Error('Usuário não encontrado');
+    if (!user) {
+      throw new Error('Refresh token inválido');
     }
 
-    console.log(`🚪 Logout realizado para usuário ${userId}`);
-    return result;
+    // Gerar novo access token
+    const newAccessToken = generateAccessToken(user);
+    
+    // Opcionalmente, gerar novo refresh token para maior segurança
+    const newRefreshToken = generateRefreshToken();
+    await User.findByIdAndUpdate(user._id, { 
+      refreshToken: newRefreshToken 
+    });
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    };
+
   } catch (error) {
-    console.error(`❌ Erro no logout para usuário ${userId}:`, error);
-    throw error;
+    throw new Error('Erro ao renovar token');
   }
+};
+
+// Função para logout (revogar refresh token)
+const logoutUser = async (userId) => {
+  await User.findOneAndUpdate(
+    { id: userId }, 
+    { refreshToken: null }
+  );
 };
 
 // Função para verificar token sem middleware (útil para casos específicos)
@@ -207,4 +232,14 @@ const verifyToken = (token) => {
   }
 };
 
-export { requireLogin, requireAdmin, requireOwnerOrAdmin, generateAccessToken, generateRefreshToken, loginUser, logoutUser, verifyToken };
+export { 
+  requireLogin, 
+  requireAdmin, 
+  requireOwnerOrAdmin, 
+  generateAccessToken, 
+  generateRefreshToken, 
+  loginUser, 
+  logoutUser, 
+  verifyToken, 
+  refreshToken 
+};
