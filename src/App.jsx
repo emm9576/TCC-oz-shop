@@ -1,11 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { ProductsProvider } from '@/contexts/ProductsContext';
-import { CartProvider } from '@/contexts/CartContext';
 import { Toaster } from '@/components/ui/toaster';
-import ApiStatus from '@/components/ApiStatus';
-
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HomePage from '@/pages/HomePage';
@@ -16,6 +11,9 @@ import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import ProfilePage from '@/pages/ProfilePage';
 import SellPage from '@/pages/SellPage';
+import { CartProvider } from '@/contexts/CartContext';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ProductsProvider } from '@/contexts/ProductsContext';
 
 function App() {
   return (
@@ -39,7 +37,6 @@ function App() {
               </main>
               <Footer />
             </div>
-            <ApiStatus />
             <Toaster />
           </CartProvider>
         </ProductsProvider>
