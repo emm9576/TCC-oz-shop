@@ -20,7 +20,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProducts } from '@/contexts/ProductsContext';
 import { useToast } from '@/components/ui/use-toast';
-import ProductRating from '@/components/ProductRating'; // 🌟 NOVO COMPONENTE
+import ProductRating from '@/components/ProductRating';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -65,7 +65,6 @@ const ProductDetailPage = () => {
     }
   }, [id, fetchProductById]);
 
-  // 🌟 Callback para atualizar produto após avaliação
   const handleRatingUpdate = (updatedProduct) => {
     setProduct(updatedProduct);
   };
@@ -255,7 +254,6 @@ const ProductDetailPage = () => {
               Vendido por: <span className="font-medium">{product.seller}</span>
             </p>
             
-            {/* 🌟 COMPONENTE DE RATING ATUALIZADO */}
             <ProductRating
               productId={product.id}
               currentRating={product.rating || 0}

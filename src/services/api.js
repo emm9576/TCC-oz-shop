@@ -183,7 +183,6 @@ class ApiService {
     });
   }
 
-  // 🌟 NOVO: Verificar se usuário já avaliou o produto
   async checkUserRating(id) {
     return this.request(`/produtos/${id}/rating/check`, {
       method: 'GET',
