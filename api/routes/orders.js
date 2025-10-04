@@ -1,7 +1,7 @@
 import express from 'express';
 import User from '../../models/user.js';
 import Order from '../../models/order.js';
-import { requireAdmin, requireOwnerOrAdmin } from '../middlewares/auth.js';
+import { requireAdmin, requireOwnerOrAdmin, requireLogin } from '../middlewares/auth.js';
 
 const router = express.Router();
 
@@ -38,6 +38,28 @@ router.get('/', requireAdmin, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao buscar pedidos', error: error.message });
+  }
+});
+
+// GET - Buscar pedidos do usuário logado
+router.get('/my-orders', requireLogin, async (req, res) => {
+  try {
+    const user = await User.findOne({ id: req.user.id });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
+
+    const orders = await Order.find({ user: user._id })
+      .populate('user', 'id name email')
+      .populate({
+        path: 'products',
+        model: 'Produto'
+      })
+      .sort({ createdAt: -1 });
+    
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erro ao buscar seus pedidos', error: error.message });
   }
 });
 
