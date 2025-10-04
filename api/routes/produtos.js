@@ -1,5 +1,6 @@
 import express from 'express';
 import Produto from '../../models/produto.js';
+import User from '../../models/user.js';
 import { requireLogin } from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -7,11 +8,17 @@ const router = express.Router();
 // GET - Buscar todos os produtos
 router.get('/', async (req, res) => {
   try {
-    const { category, seller, minPrice, maxPrice, page = 1, limit = 10 } = req.query;
+    const { category, seller, userId, minPrice, maxPrice, page = 1, limit = 10 } = req.query;
     
     let filter = {};
     if (category) filter.category = new RegExp(category, 'i');
     if (seller) filter.seller = new RegExp(seller, 'i');
+    if (userId) {
+      const user = await User.findOne({ id: userId });
+      if (user) {
+        filter.userId = user._id;
+      }
+    }
     if (minPrice || maxPrice) {
       filter.price = {};
       if (minPrice) filter.price.$gte = Number(minPrice);
@@ -19,6 +26,7 @@ router.get('/', async (req, res) => {
     }
 
     const produtos = await Produto.find(filter)
+      .populate('userId', 'id name email')
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .sort({ createdAt: -1 });
@@ -40,36 +48,29 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET - Buscar produtos do usuário autenticado
+// GET - Buscar produtos do usuário logado
 router.get('/my-products', requireLogin, async (req, res) => {
   try {
-    const userId = req.user._id;
+    const user = await User.findOne({ id: req.user.id });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
 
-    // Buscar produtos onde o userId do criador corresponde ao usuário autenticado
-    const produtos = await Produto.find({ 
-      userId: userId,
-      deleted: { $ne: true } // Não incluir produtos deletados
-    }).sort({ createdAt: -1 });
-
-    res.json({ 
-      success: true, 
-      data: produtos,
-      total: produtos.length
-    });
+    const produtos = await Produto.find({ userId: user._id })
+      .populate('userId', 'id name email phone estado cidade')
+      .sort({ createdAt: -1 });
+    
+    res.json({ success: true, data: produtos });
   } catch (error) {
-    console.error('❌ Erro ao buscar produtos do usuário:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erro ao buscar seus produtos', 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Erro ao buscar seus produtos', error: error.message });
   }
 });
 
 // GET - Buscar produto por ID
 router.get('/:id', async (req, res) => {
   try {
-    const produto = await Produto.findOne({ id: req.params.id });
+    const produto = await Produto.findOne({ id: req.params.id })
+      .populate('userId', 'id name email phone estado cidade');
     if (!produto) {
       return res.status(404).json({ success: false, message: 'Produto não encontrado' });
     }
@@ -79,40 +80,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// GET - Verificar se usuário já avaliou o produto
-router.get('/:id/rating/check', requireLogin, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    
-    const produto = await Produto.findOne({ id: req.params.id });
-    if (!produto) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Produto não encontrado' 
-      });
-    }
-
-    const userRating = produto.ratings?.find(
-      r => r.userId.toString() === userId.toString()
-    );
-
-    res.json({ 
-      success: true, 
-      hasRated: !!userRating,
-      rating: userRating ? userRating.rating : null
-    });
-  } catch (error) {
-    console.error('❌ Erro ao verificar avaliação:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erro ao verificar avaliação', 
-      error: error.message 
-    });
-  }
-});
-
 // POST - Criar novo produto
-router.post('/', async (req, res) => {
+router.post('/', requireLogin, async (req, res) => {
   try {
     const {
       name,
@@ -127,6 +96,12 @@ router.post('/', async (req, res) => {
       images,
       features
     } = req.body;
+
+    // Buscar usuário logado para obter o ObjectId
+    const user = await User.findOne({ id: req.user.id });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
 
     const newProduto = new Produto({
       name,
@@ -137,20 +112,26 @@ router.post('/', async (req, res) => {
       stock,
       freteGratis,
       seller,
+      userId: user._id,
       imageMain,
       images,
       features
     });
 
     await newProduto.save();
-    res.status(201).json({ success: true, message: 'Produto criado com sucesso!', data: newProduto });
+    
+    // Popular o userId antes de retornar
+    const populatedProduto = await Produto.findById(newProduto._id)
+      .populate('userId', 'id name email');
+    
+    res.status(201).json({ success: true, message: 'Produto criado com sucesso!', data: populatedProduto });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Erro ao criar produto', error: error.message });
   }
 });
 
 // PUT - Atualizar produto
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireLogin, async (req, res) => {
   try {
     const {
       name,
@@ -164,6 +145,20 @@ router.put('/:id', async (req, res) => {
       images,
       features
     } = req.body;
+
+    // Buscar o produto para verificar permissões
+    const produto = await Produto.findOne({ id: req.params.id });
+    if (!produto) {
+      return res.status(404).json({ success: false, message: 'Produto não encontrado' });
+    }
+
+    // Verificar se o usuário é dono do produto ou admin
+    if (req.user.role !== 'admin' && produto.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Você não tem permissão para editar este produto' 
+      });
+    }
 
     const updatedProduto = await Produto.findOneAndUpdate(
       { id: req.params.id },
@@ -180,11 +175,7 @@ router.put('/:id', async (req, res) => {
         features
       },
       { new: true, runValidators: true }
-    );
-
-    if (!updatedProduto) {
-      return res.status(404).json({ success: false, message: 'Produto não encontrado' });
-    }
+    ).populate('userId', 'id name email');
 
     res.json({ success: true, message: 'Produto atualizado com sucesso!', data: updatedProduto });
   } catch (error) {
@@ -197,12 +188,6 @@ router.patch('/:id/rating', requireLogin, async (req, res) => {
   try {
     const { rating } = req.body;
     const userId = req.user._id;
-    
-    console.log('⭐ Tentando avaliar produto:', {
-      productId: req.params.id,
-      userId: userId.toString(),
-      rating
-    });
     
     // Validar rating
     if (!rating || rating < 1 || rating > 5) {
@@ -225,8 +210,6 @@ router.patch('/:id/rating', requireLogin, async (req, res) => {
     const alreadyRated = produto.ratings?.some(
       r => r.userId.toString() === userId.toString()
     );
-
-    console.log('🔍 Já avaliou?', alreadyRated);
 
     if (alreadyRated) {
       return res.status(400).json({ 
@@ -260,15 +243,13 @@ router.patch('/:id/rating', requireLogin, async (req, res) => {
     // Salvar as alterações
     await produto.save();
 
-    console.log('✅ Avaliação salva com sucesso!');
-
     res.json({ 
       success: true, 
       message: 'Avaliação registrada com sucesso!',
       data: produto 
     });
   } catch (error) {
-    console.error('❌ Erro ao atualizar rating:', error);
+    console.error('Erro ao atualizar rating:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Erro ao avaliar produto', 
@@ -277,9 +258,54 @@ router.patch('/:id/rating', requireLogin, async (req, res) => {
   }
 });
 
-// DELETE - Deletar produto (soft delete)
-router.delete('/:id', async (req, res) => {
+// GET - Verificar se usuário já avaliou o produto
+router.get('/:id/rating/check', requireLogin, async (req, res) => {
   try {
+    const userId = req.user._id;
+    
+    const produto = await Produto.findOne({ id: req.params.id });
+    if (!produto) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Produto não encontrado' 
+      });
+    }
+
+    const userRating = produto.ratings?.find(
+      r => r.userId.toString() === userId.toString()
+    );
+
+    res.json({ 
+      success: true, 
+      hasRated: !!userRating,
+      rating: userRating ? userRating.rating : null
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao verificar avaliação', 
+      error: error.message 
+    });
+  }
+});
+
+// DELETE - Deletar produto (soft delete)
+router.delete('/:id', requireLogin, async (req, res) => {
+  try {
+    // Buscar o produto para verificar permissões
+    const produto = await Produto.findOne({ id: req.params.id });
+    if (!produto) {
+      return res.status(404).json({ success: false, message: 'Produto não encontrado' });
+    }
+
+    // Verificar se o usuário é dono do produto ou admin
+    if (req.user.role !== 'admin' && produto.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Você não tem permissão para deletar este produto' 
+      });
+    }
+
     const updates = {
       $set: { deleted: true },
       $unset: {
@@ -295,7 +321,8 @@ router.delete('/:id', async (req, res) => {
         rating: "",
         reviews: "",
         seller: "",
-        stock: ""
+        stock: "",
+        userId: ""
       }
     };
 
@@ -305,30 +332,44 @@ router.delete('/:id', async (req, res) => {
       { new: true }
     );
 
-    if (!deletedProduct) {
-      return res.status(404).json({ success: false, message: 'Produto não encontrado' });
-    }
-
     return res.json({ success: true, message: 'Produto soft-deletado com sucesso!' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao deletar produto', error: error.message });
   }
 });
 
-// GET - Buscar produtos por vendedor
+// GET - Buscar produtos por vendedor (usando campo seller)
 router.get('/seller/:seller', async (req, res) => {
   try {
-    const produtos = await Produto.find({ seller: req.params.seller });
+    const produtos = await Produto.find({ seller: req.params.seller })
+      .populate('userId', 'id name email');
     res.json({ success: true, data: produtos });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao buscar produtos do vendedor', error: error.message });
   }
 });
 
+// GET - Buscar produtos por userId
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const user = await User.findOne({ id: req.params.userId });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
+    
+    const produtos = await Produto.find({ userId: user._id })
+      .populate('userId', 'id name email phone estado cidade');
+    res.json({ success: true, data: produtos });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erro ao buscar produtos do usuário', error: error.message });
+  }
+});
+
 // GET - Buscar produtos por categoria
 router.get('/category/:category', async (req, res) => {
   try {
-    const produtos = await Produto.find({ category: new RegExp(req.params.category, 'i') });
+    const produtos = await Produto.find({ category: new RegExp(req.params.category, 'i') })
+      .populate('userId', 'id name email');
     res.json({ success: true, data: produtos });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao buscar produtos da categoria', error: error.message });
@@ -338,7 +379,8 @@ router.get('/category/:category', async (req, res) => {
 // GET - Buscar produtos com frete grátis
 router.get('/frete-gratis', async (req, res) => {
   try {
-    const produtos = await Produto.find({ freteGratis: true });
+    const produtos = await Produto.find({ freteGratis: true })
+      .populate('userId', 'id name email');
     res.json({ success: true, data: produtos });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao buscar produtos com frete grátis', error: error.message });

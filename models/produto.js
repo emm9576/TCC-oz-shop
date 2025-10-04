@@ -12,18 +12,18 @@ const ProdutoSchema = new mongoose.Schema({
     rating: { type: Number, default: 0 },
     reviews: { type: Number, default: 0 },
     seller: { type: String, required: true, trim: true },
+    // Campo userId adicionado para referenciar o vendedor
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     imageMain: { type: String, required: true },
     images: { type: [String], default: [] },
     features: { type: [String], default: [] },
     createdAt: { type: Date, default: Date.now },
 
-    // Referência ao usuário que criou o produto
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: false // Opcional para não quebrar produtos antigos
-    },
-
+    // Array de ratings individuais dos usuários
     ratings: [{
         userId: {
             type: mongoose.Schema.Types.ObjectId,
