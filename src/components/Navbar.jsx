@@ -45,7 +45,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-primary">e-Shop FITO</span>
+            <span className="text-2xl font-bold text-primary">Oz Shop</span>
           </Link>
 
           <div className="hidden md:flex items-center space-x-6">

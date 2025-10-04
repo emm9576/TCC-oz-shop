@@ -57,7 +57,7 @@ const HomePage = () => {
               transition={{ duration: 0.5 }}
             >
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
-                Compre e venda no <span className="text-primary">e-Shop FITO</span>
+                Compre e venda no <span className="text-primary">Oz Shop</span>
               </h1>
               <p className="text-lg md:text-xl text-gray-600 mb-8">
                 Seu marketplace completo para encontrar produtos incríveis ou vender o que você não usa mais.
@@ -175,7 +175,7 @@ const HomePage = () => {
             >
               <h2 className="text-3xl md:text-4xl font-bold mb-4">Tem algo para vender?</h2>
               <p className="text-lg text-gray-600 mb-6">
-                Transforme itens não utilizados em dinheiro. Venda facilmente no e-Shop FITO e alcance milhares de compradores.
+                Transforme itens não utilizados em dinheiro. Venda facilmente no Oz Shop e alcance milhares de compradores.
               </p>
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
                 <Link to="/vender" className="flex items-center">
@@ -227,7 +227,7 @@ const HomePage = () => {
             transition={{ duration: 0.5 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl font-bold mb-2">Por que escolher o e-Shop FITO?</h2>
+            <h2 className="text-3xl font-bold mb-2">Por que escolher o Oz Shop?</h2>
             <p className="text-gray-600">Oferecemos a melhor experiência para compradores e vendedores</p>
           </motion.div>
           
@@ -296,7 +296,7 @@ const HomePage = () => {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Pronto para começar?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Junte-se a milhares de pessoas que já estão comprando e vendendo no e-Shop FITO.
+            Junte-se a milhares de pessoas que já estão comprando e vendendo no Oz Shop.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-gray-100">

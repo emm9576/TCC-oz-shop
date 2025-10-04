@@ -1,4 +1,4 @@
-# TCC E-Shop FITO
+# TCC Oz Shop
 
 Plataforma de e-commerce desenvolvida como Trabalho de Conclusão de Curso (TCC), inspirada em marketplaces como Shopee e Mercado Livre.  
 O projeto é dividido em **frontend** (React + Vite + TailwindCSS) e **backend** (Node.js + Express + MongoDB), rodando juntos a partir de um único comando.

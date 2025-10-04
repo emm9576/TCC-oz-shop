@@ -17,7 +17,7 @@ const HeroSection = () => {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
-              Compre e venda no <span className="text-primary">e-Shop FITO</span>
+              Compre e venda no <span className="text-primary">Oz Shop</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-600 mb-8">
               Seu marketplace completo para encontrar produtos incríveis ou vender o que você não usa mais.

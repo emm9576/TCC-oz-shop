@@ -19,7 +19,7 @@ const SellBannerSection = () => {
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Tem algo para vender?</h2>
             <p className="text-lg text-gray-600 mb-6">
-              Transforme itens não utilizados em dinheiro. Venda facilmente no e-Shop FITO e alcance milhares de compradores.
+              Transforme itens não utilizados em dinheiro. Venda facilmente no Oz Shop e alcance milhares de compradores.
             </p>
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
               <Link to="/vender" className="flex items-center">

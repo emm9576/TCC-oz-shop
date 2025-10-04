@@ -57,7 +57,7 @@ const AdvantagesSection = () => {
           transition={{ duration: 0.5 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-3xl font-bold mb-2">Por que escolher o e-Shop FITO?</h2>
+          <h2 className="text-3xl font-bold mb-2">Por que escolher o Oz Shop?</h2>
           <p className="text-gray-600">Oferecemos a melhor experiência para compradores e vendedores</p>
         </motion.div>
         
