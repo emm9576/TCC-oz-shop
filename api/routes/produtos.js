@@ -53,6 +53,38 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET - Verificar se usuário já avaliou o produto
+router.get('/:id/rating/check', requireLogin, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    const produto = await Produto.findOne({ id: req.params.id });
+    if (!produto) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Produto não encontrado' 
+      });
+    }
+
+    const userRating = produto.ratings?.find(
+      r => r.userId.toString() === userId.toString()
+    );
+
+    res.json({ 
+      success: true, 
+      hasRated: !!userRating,
+      rating: userRating ? userRating.rating : null
+    });
+  } catch (error) {
+    console.error('❌ Erro ao verificar avaliação:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao verificar avaliação', 
+      error: error.message 
+    });
+  }
+});
+
 // POST - Criar novo produto
 router.post('/', async (req, res) => {
   try {
@@ -140,6 +172,12 @@ router.patch('/:id/rating', requireLogin, async (req, res) => {
     const { rating } = req.body;
     const userId = req.user._id;
     
+    console.log('⭐ Tentando avaliar produto:', {
+      productId: req.params.id,
+      userId: userId.toString(),
+      rating
+    });
+    
     // Validar rating
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({ 
@@ -161,6 +199,8 @@ router.patch('/:id/rating', requireLogin, async (req, res) => {
     const alreadyRated = produto.ratings?.some(
       r => r.userId.toString() === userId.toString()
     );
+
+    console.log('🔍 Já avaliou?', alreadyRated);
 
     if (alreadyRated) {
       return res.status(400).json({ 
@@ -194,47 +234,18 @@ router.patch('/:id/rating', requireLogin, async (req, res) => {
     // Salvar as alterações
     await produto.save();
 
+    console.log('✅ Avaliação salva com sucesso!');
+
     res.json({ 
       success: true, 
       message: 'Avaliação registrada com sucesso!',
       data: produto 
     });
   } catch (error) {
-    console.error('Erro ao atualizar rating:', error);
+    console.error('❌ Erro ao atualizar rating:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Erro ao avaliar produto', 
-      error: error.message 
-    });
-  }
-});
-
-// GET - Verificar se usuário já avaliou o produto
-router.get('/:id/rating/check', requireLogin, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    
-    const produto = await Produto.findOne({ id: req.params.id });
-    if (!produto) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Produto não encontrado' 
-      });
-    }
-
-    const userRating = produto.ratings?.find(
-      r => r.userId.toString() === userId.toString()
-    );
-
-    res.json({ 
-      success: true, 
-      hasRated: !!userRating,
-      rating: userRating ? userRating.rating : null
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erro ao verificar avaliação', 
       error: error.message 
     });
   }

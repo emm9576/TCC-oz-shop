@@ -1,17 +1,17 @@
 // src/components/ProductRating.jsx
 import React, { useState, useEffect } from 'react';
-import { Star, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Star, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import apiService from '@/services/api'; // ✅ CORRETO: Importar apiService
+import apiService from '@/services/api';
 
 const ProductRating = ({ productId, currentRating, totalReviews, onRatingUpdate }) => {
   const [hoveredRating, setHoveredRating] = useState(0);
   const [userRating, setUserRating] = useState(null);
   const [hasRated, setHasRated] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCheckingRating, setIsCheckingRating] = useState(true);
+  const [isCheckingRating, setIsCheckingRating] = useState(false);
   
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
@@ -19,20 +19,31 @@ const ProductRating = ({ productId, currentRating, totalReviews, onRatingUpdate 
   // Verificar se o usuário já avaliou este produto
   useEffect(() => {
     const checkUserRating = async () => {
-      if (!isAuthenticated || !user || !productId) {
-        setIsCheckingRating(false);
-        return;
-      }
+      // Resetar estados primeiro
+      setHasRated(false);
+      setUserRating(null);
+      
+      if (!isAuthenticated || !user || !productId) return;
+
+      setIsCheckingRating(true);
 
       try {
-        const response = await apiService.request(`/produtos/${productId}/rating/check`);
+        // Usar o método correto do apiService
+        const response = await apiService.checkUserRating(productId);
         
         if (response.success) {
-          setHasRated(response.hasRated);
-          setUserRating(response.rating);
+          const rated = response.hasRated || false;
+          const rating = response.rating || null;
+          
+          setHasRated(rated);
+          setUserRating(rating);
+        } else {
+          setHasRated(false);
+          setUserRating(null);
         }
       } catch (error) {
-        console.error('Erro ao verificar avaliação:', error);
+        console.error('❌ Erro ao verificar avaliação:', error);
+        // Em caso de erro, assumir que não avaliou para não bloquear o usuário
         setHasRated(false);
         setUserRating(null);
       } finally {
@@ -68,10 +79,7 @@ const ProductRating = ({ productId, currentRating, totalReviews, onRatingUpdate 
     setIsSubmitting(true);
 
     try {
-      const response = await apiService.request(`/produtos/${productId}/rating`, {
-        method: 'PATCH',
-        body: JSON.stringify({ rating }),
-      });
+      const response = await apiService.updateProductRating(productId, rating);
 
       if (response.success) {
         setHasRated(true);
@@ -83,14 +91,19 @@ const ProductRating = ({ productId, currentRating, totalReviews, onRatingUpdate 
           duration: 3000,
         });
 
-        if (onRatingUpdate) {
+        // Atualizar o produto na página
+        if (onRatingUpdate && response.data) {
           onRatingUpdate(response.data);
         }
       }
     } catch (error) {
-      console.error('Erro ao avaliar produto:', error);
+      console.error('❌ Erro ao avaliar produto:', error);
       
-      if (error.message && error.message.includes('já avaliou')) {
+      // Verificar se o erro é de avaliação duplicada
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('já avaliou') || 
+          errorMsg.includes('already rated') ||
+          errorMsg.includes('duplicate')) {
         setHasRated(true);
         toast({
           title: "Você já avaliou este produto",
@@ -101,7 +114,7 @@ const ProductRating = ({ productId, currentRating, totalReviews, onRatingUpdate 
       } else {
         toast({
           title: "Erro ao enviar avaliação",
-          description: error.message || "Tente novamente mais tarde.",
+          description: errorMsg || "Tente novamente mais tarde.",
           variant: "destructive",
           duration: 3000,
         });
@@ -155,11 +168,11 @@ const ProductRating = ({ productId, currentRating, totalReviews, onRatingUpdate 
               key={index}
               type="button"
               disabled={hasRated || isSubmitting}
-              onMouseEnter={() => !hasRated && setHoveredRating(starValue)}
-              onMouseLeave={() => !hasRated && setHoveredRating(0)}
-              onClick={() => !hasRated && handleRatingSubmit(starValue)}
+              onMouseEnter={() => !hasRated && !isSubmitting && setHoveredRating(starValue)}
+              onMouseLeave={() => !hasRated && !isSubmitting && setHoveredRating(0)}
+              onClick={() => !hasRated && !isSubmitting && handleRatingSubmit(starValue)}
               className={`transition-all ${
-                hasRated
+                hasRated || isSubmitting
                   ? 'cursor-not-allowed opacity-60'
                   : 'cursor-pointer hover:scale-110'
               }`}
@@ -168,7 +181,9 @@ const ProductRating = ({ productId, currentRating, totalReviews, onRatingUpdate 
                 className={`h-6 w-6 ${
                   isFilled
                     ? 'text-yellow-400 fill-yellow-400'
-                    : 'text-gray-300 hover:text-yellow-200'
+                    : hasRated 
+                      ? 'text-gray-300'
+                      : 'text-gray-300 hover:text-yellow-200'
                 }`}
               />
             </button>
@@ -178,11 +193,25 @@ const ProductRating = ({ productId, currentRating, totalReviews, onRatingUpdate 
     );
   };
 
+  // Mostrar loader enquanto verifica
   if (isCheckingRating) {
     return (
-      <div className="flex items-center gap-2 text-gray-500">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="text-sm">Carregando...</span>
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          {renderDisplayStars()}
+          <span className="text-sm text-gray-600 font-medium">
+            {currentRating > 0 ? currentRating.toFixed(1) : '0.0'}
+          </span>
+          <span className="text-sm text-gray-500">
+            ({totalReviews || 0} {totalReviews === 1 ? 'avaliação' : 'avaliações'})
+          </span>
+        </div>
+        <div className="border-t pt-4">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Verificando sua avaliação...</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -201,59 +230,83 @@ const ProductRating = ({ productId, currentRating, totalReviews, onRatingUpdate 
       </div>
 
       {/* Seção de avaliação do usuário */}
-      <div className="border-t pt-4">
-        {!isAuthenticated ? (
+      {isAuthenticated && (
+        <div className="border-t pt-4">
+          {hasRated ? (
+            // Usuário JÁ AVALIOU - Mostrar mensagem verde
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-grow">
+                  <p className="font-medium text-green-900 mb-1">
+                    Você já avaliou este produto
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-green-700">Sua avaliação:</span>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }, (_, index) => (
+                        <Star
+                          key={index}
+                          className={`h-5 w-5 ${
+                            index < (userRating || 0)
+                              ? 'text-yellow-400 fill-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Usuário NÃO AVALIOU - Mostrar caixa para avaliar
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="font-medium text-blue-900 mb-3">
+                Avalie este produto
+              </p>
+              <div className="flex items-center gap-3">
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="text-sm">Enviando avaliação...</span>
+                  </div>
+                ) : (
+                  <>
+                    {renderInteractiveStars()}
+                    {hoveredRating > 0 && (
+                      <span className="text-sm text-blue-700 font-medium">
+                        {hoveredRating} {hoveredRating === 1 ? 'estrela' : 'estrelas'}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-blue-600 mt-2">
+                Clique nas estrelas para avaliar (você só pode avaliar uma vez)
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mensagem para usuários não autenticados */}
+      {!isAuthenticated && (
+        <div className="border-t pt-4">
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm text-gray-600 mb-2">
               Faça login para avaliar este produto
             </p>
-            <Button variant="outline" size="sm" onClick={() => window.location.href = '/login'}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.location.href = '/login'}
+            >
               Fazer Login
             </Button>
           </div>
-        ) : hasRated ? (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-grow">
-                <p className="font-medium text-green-900 mb-1">
-                  Você já avaliou este produto
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-green-700">Sua avaliação:</span>
-                  {renderInteractiveStars()}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="font-medium text-blue-900 mb-3">
-              Avalie este produto
-            </p>
-            <div className="flex items-center gap-3">
-              {isSubmitting ? (
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span className="text-sm">Enviando avaliação...</span>
-                </div>
-              ) : (
-                <>
-                  {renderInteractiveStars()}
-                  {hoveredRating > 0 && (
-                    <span className="text-sm text-blue-700 font-medium">
-                      {hoveredRating} {hoveredRating === 1 ? 'estrela' : 'estrelas'}
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-            <p className="text-xs text-blue-600 mt-2">
-              Clique nas estrelas para avaliar (você só pode avaliar uma vez)
-            </p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
