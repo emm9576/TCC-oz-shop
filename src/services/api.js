@@ -133,6 +133,13 @@ class ApiService {
     });
   }
 
+  async updateMe(userData) {
+    return this.request('/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
   async deleteUser(id) {
     return this.request(`/users/${id}`, {
       method: 'DELETE',
@@ -162,6 +169,13 @@ class ApiService {
     return this.request(`/produtos/${id}`, { requireAuth: false });
   }
 
+  async getMyProducts() {
+    return this.request('/produtos/my-products', {
+      method: 'GET',
+      requireAuth: true,
+    });
+  }
+
   async createProduct(productData) {
     return this.request('/produtos', {
       method: 'POST',
@@ -183,6 +197,7 @@ class ApiService {
     });
   }
 
+  // Verificar se usuário já avaliou o produto
   async checkUserRating(id) {
     return this.request(`/produtos/${id}/rating/check`, {
       method: 'GET',

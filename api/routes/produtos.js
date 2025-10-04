@@ -40,6 +40,32 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET - Buscar produtos do usuário autenticado
+router.get('/my-products', requireLogin, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Buscar produtos onde o userId do criador corresponde ao usuário autenticado
+    const produtos = await Produto.find({ 
+      userId: userId,
+      deleted: { $ne: true } // Não incluir produtos deletados
+    }).sort({ createdAt: -1 });
+
+    res.json({ 
+      success: true, 
+      data: produtos,
+      total: produtos.length
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar produtos do usuário:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao buscar seus produtos', 
+      error: error.message 
+    });
+  }
+});
+
 // GET - Buscar produto por ID
 router.get('/:id', async (req, res) => {
   try {

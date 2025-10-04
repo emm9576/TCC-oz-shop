@@ -17,6 +17,13 @@ const ProdutoSchema = new mongoose.Schema({
     features: { type: [String], default: [] },
     createdAt: { type: Date, default: Date.now },
 
+    // Referência ao usuário que criou o produto
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false // Opcional para não quebrar produtos antigos
+    },
+
     ratings: [{
         userId: {
             type: mongoose.Schema.Types.ObjectId,
