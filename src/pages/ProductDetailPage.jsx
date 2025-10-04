@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Star, 
   ShoppingCart, 
   Heart, 
   Share2, 
@@ -13,159 +12,15 @@ import {
   Plus,
   Minus,
   Loader2,
-  AlertCircle,
-  User
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProducts } from '@/contexts/ProductsContext';
 import { useToast } from '@/components/ui/use-toast';
-import apiService from '@/services/api';
-
-// Componente de Rating Interativo
-const RatingComponent = ({ 
-  productId, 
-  currentRating = 0, 
-  userRating = 0, 
-  totalRatings = 0, 
-  isAuthenticated, 
-  onRatingUpdate 
-}) => {
-  const [hoverRating, setHoverRating] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
-
-  const handleRatingClick = async (rating) => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Login necessário",
-        description: "Você precisa estar logado para avaliar produtos.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const response = await apiService.updateProductRating(productId, rating);
-      
-      if (response.success) {
-        toast({
-          title: "Avaliação enviada",
-          description: "Sua avaliação foi registrada com sucesso!",
-          duration: 3000,
-        });
-        
-        // Callback para atualizar os dados do produto
-        if (onRatingUpdate) {
-          onRatingUpdate(response.data);
-        }
-      } else {
-        throw new Error(response.message || 'Erro ao enviar avaliação');
-      }
-    } catch (error) {
-      console.error('Erro ao avaliar produto:', error);
-      toast({
-        title: "Erro na avaliação",
-        description: error.message || "Não foi possível enviar sua avaliação. Tente novamente.",
-        variant: "destructive",
-        duration: 3000,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Rating atual do produto */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center">
-          {Array.from({ length: 5 }, (_, i) => (
-            <Star
-              key={i}
-              className={`h-5 w-5 ${
-                i < Math.floor(currentRating)
-                  ? 'text-yellow-400 fill-current'
-                  : 'text-gray-300'
-              }`}
-            />
-          ))}
-        </div>
-        <span className="text-sm text-gray-600">
-          {currentRating > 0 ? currentRating.toFixed(1) : 'Sem avaliações'} 
-          {totalRatings > 0 && ` (${totalRatings} avaliação${totalRatings > 1 ? 'ões' : ''})`}
-        </span>
-      </div>
-
-      {/* Interface de avaliação do usuário */}
-      <div className="border-t pt-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-medium text-gray-900">
-            {userRating > 0 ? 'Sua avaliação' : 'Avaliar este produto'}
-          </h3>
-          {userRating > 0 && (
-            <Badge variant="outline">
-              Você avaliou: {userRating} estrela{userRating > 1 ? 's' : ''}
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center">
-            {Array.from({ length: 5 }, (_, i) => {
-              const starValue = i + 1;
-              const isActive = starValue <= (hoverRating || userRating);
-              
-              return (
-                <button
-                  key={i}
-                  className={`p-1 transition-colors ${
-                    !isAuthenticated ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:scale-110'
-                  }`}
-                  disabled={!isAuthenticated || isSubmitting}
-                  onMouseEnter={() => isAuthenticated && setHoverRating(starValue)}
-                  onMouseLeave={() => setHoverRating(0)}
-                  onClick={() => handleRatingClick(starValue)}
-                >
-                  <Star
-                    className={`h-6 w-6 transition-colors ${
-                      isActive
-                        ? 'text-yellow-400 fill-current'
-                        : 'text-gray-300 hover:text-yellow-200'
-                    }`}
-                  />
-                </button>
-              );
-            })}
-          </div>
-
-          {isSubmitting && (
-            <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-          )}
-        </div>
-
-        {!isAuthenticated ? (
-          <p className="text-sm text-gray-500 mt-1">
-            Faça login para avaliar este produto
-          </p>
-        ) : userRating > 0 ? (
-          <p className="text-sm text-gray-600 mt-1">
-            Clique nas estrelas para alterar sua avaliação
-          </p>
-        ) : (
-          <p className="text-sm text-gray-600 mt-1">
-            Clique nas estrelas para avaliar
-          </p>
-        )}
-      </div>
-    </div>
-  );
-};
+import ProductRating from '@/components/ProductRating'; // 🌟 NOVO COMPONENTE
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -177,15 +32,13 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [buying, setBuying] = useState(false);
-  const [userRating, setUserRating] = useState(0);
-  const [loadingUserRating, setLoadingUserRating] = useState(false);
 
   const { addToCart, buyProduct, isInCart, getItemQuantity } = useCart();
   const { isAuthenticated } = useAuth();
   const { fetchProductById } = useProducts();
   const { toast } = useToast();
 
-  // Carregar produto e rating do usuário
+  // Carregar produto
   useEffect(() => {
     const loadProduct = async () => {
       try {
@@ -196,7 +49,6 @@ const ProductDetailPage = () => {
         
         if (result.success) {
           setProduct(result.data);
-
         } else {
           setError(result.message || 'Produto não encontrado');
         }
@@ -211,32 +63,21 @@ const ProductDetailPage = () => {
     if (id) {
       loadProduct();
     }
-  }, [id, fetchProductById, isAuthenticated]);
+  }, [id, fetchProductById]);
 
-  // Callback para atualizar dados após nova avaliação
-  const handleRatingUpdate = (newRatingData) => {
-    if (newRatingData) {
-      // Atualizar dados do produto com novos valores de rating
-      setProduct(prev => ({
-        ...prev,
-        rating: newRatingData.averageRating || prev.rating,
-        reviews: newRatingData.totalRatings || prev.reviews,
-        totalRatings: newRatingData.totalRatings || prev.totalRatings
-      }));
-      
-      // Atualizar rating do usuário
-      setUserRating(newRatingData.userRating || newRatingData.rating);
-    }
+  // 🌟 Callback para atualizar produto após avaliação
+  const handleRatingUpdate = (updatedProduct) => {
+    setProduct(updatedProduct);
   };
 
-  // Handlers existentes
+  // Handlers
   const handleAddToCart = async () => {
     if (!product) return;
 
     setAddingToCart(true);
     try {
       await addToCart(product, quantity);
-      setQuantity(1); // Reset quantidade após adicionar
+      setQuantity(1);
     } catch (error) {
       console.error('Erro ao adicionar ao carrinho:', error);
     } finally {
@@ -291,7 +132,6 @@ const ProductDetailPage = () => {
         console.error('Erro ao compartilhar:', error);
       }
     } else {
-      // Fallback: copiar URL
       navigator.clipboard.writeText(window.location.href);
       toast({
         title: "Link copiado",
@@ -301,12 +141,10 @@ const ProductDetailPage = () => {
     }
   };
 
-  // Calcular preço com desconto
   const calculatePrice = (price, discount) => {
     return discount > 0 ? price * (1 - discount / 100) : price;
   };
 
-  // Estados de carregamento e erro
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -417,25 +255,13 @@ const ProductDetailPage = () => {
               Vendido por: <span className="font-medium">{product.seller}</span>
             </p>
             
-            {/* Rating Component */}
-            <Card className="mb-4">
-              <CardContent className="pt-4">
-                <RatingComponent
-                  productId={product.id}
-                  currentRating={product.rating || 0}
-                  userRating={userRating}
-                  totalRatings={product.reviews || product.totalRatings || 0}
-                  isAuthenticated={isAuthenticated}
-                  onRatingUpdate={handleRatingUpdate}
-                />
-                {loadingUserRating && (
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-2">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Carregando sua avaliação...
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* 🌟 COMPONENTE DE RATING ATUALIZADO */}
+            <ProductRating
+              productId={product.id}
+              currentRating={product.rating || 0}
+              totalReviews={product.reviews || 0}
+              onRatingUpdate={handleRatingUpdate}
+            />
           </div>
 
           {/* Preço */}
@@ -600,19 +426,6 @@ const ProductDetailPage = () => {
             <div className="space-y-3">
               <div>
                 <p className="font-medium text-gray-900">{product.seller}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="flex items-center">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < 4 ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-600">4.0 (123 vendas)</span>
-                </div>
               </div>
               
               <div className="space-y-2 text-sm">

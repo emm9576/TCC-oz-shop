@@ -6,23 +6,13 @@ class ApiService {
     this.token = localStorage.getItem('token');
   }
 
-  // Verificar se o token está expirado
-  isTokenExpired() {
-    const tokenExpiry = localStorage.getItem('tokenExpiry');
-    if (!tokenExpiry) return true;
-    
-    const now = new Date();
-    const expiryDate = new Date(tokenExpiry);
-    return now >= expiryDate;
-  }
-
   // Configurar cabeçalhos padrão
   getHeaders(includeAuth = true) {
     const headers = {
       'Content-Type': 'application/json',
     };
 
-    if (includeAuth && this.token && !this.isTokenExpired()) {
+    if (includeAuth && this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
@@ -43,45 +33,15 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      
-      // Verificar se há um novo token no header de resposta (refresh automático)
-      const newToken = response.headers.get('X-New-Token');
-      if (newToken) {
-        this.setToken(newToken);
-        
-        // Atualizar também a data de expiração
-        const newExpiry = new Date();
-        newExpiry.setDate(newExpiry.getDate() + 1); // 1 dia
-        localStorage.setItem('tokenExpiry', newExpiry.toISOString());
-      }
-      
       const data = await response.json();
 
       if (!response.ok) {
-        // Se erro 401, token pode estar expirado
-        if (response.status === 401) {
-          this.setToken(null);
-          localStorage.removeItem('user');
-          localStorage.removeItem('tokenExpiry');
-          
-          // Se não for uma rota de login/signup, rejeitar com erro específico
-          if (!endpoint.includes('/login') && !endpoint.includes('/signup')) {
-            throw new Error('Sessão expirada. Faça login novamente.');
-          }
-        }
-        
-        throw new Error(data.message || `Erro HTTP ${response.status}`);
+        throw new Error(data.message || 'Erro na requisição');
       }
 
       return data;
     } catch (error) {
       console.error('API Request Error:', error);
-      
-      // Tratar erros de rede
-      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-        throw new Error('Erro de conexão. Verifique se o servidor está rodando.');
-      }
-      
       throw error;
     }
   }
@@ -158,13 +118,6 @@ class ApiService {
     return this.request('/users/me');
   }
 
-  async updateMe(userData) {
-    return this.request('/users/me', {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-  }
-
   async getAllUsers() {
     return this.request('/users');
   }
@@ -230,6 +183,14 @@ class ApiService {
     });
   }
 
+  // 🌟 NOVO: Verificar se usuário já avaliou o produto
+  async checkUserRating(id) {
+    return this.request(`/produtos/${id}/rating/check`, {
+      method: 'GET',
+      requireAuth: true,
+    });
+  }
+
   async deleteProduct(id) {
     return this.request(`/produtos/${id}`, {
       method: 'DELETE',
@@ -246,10 +207,6 @@ class ApiService {
 
   async getProductsWithFreeShipping() {
     return this.request('/produtos/frete-gratis', { requireAuth: false });
-  }
-
-  async getMyProducts() {
-    return this.request('/produtos/my-products', { requireAuth: true });
   }
 
   // ========================

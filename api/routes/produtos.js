@@ -40,30 +40,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET - Buscar produtos do usuário autenticado (nova rota)
-router.get('/my-products', requireLogin, async (req, res) => {
-  try {
-    const userName = req.user.name;
-    
-    const produtos = await Produto.find({ 
-      seller: userName,
-      deleted: { $ne: true } // Não buscar produtos deletados
-    }).sort({ createdAt: -1 });
-
-    res.json({ 
-      success: true, 
-      data: produtos,
-      message: produtos.length === 0 ? 'Nenhum produto encontrado' : undefined
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erro ao buscar seus produtos', 
-      error: error.message 
-    });
-  }
-});
-
 // GET - Buscar produto por ID
 router.get('/:id', async (req, res) => {
   try {
@@ -158,39 +134,109 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// PATCH - Atualizar rating do produto
-router.patch('/:id/rating', async (req, res) => {
+// PATCH - Atualizar rating do produto (COM VERIFICAÇÃO DE VOTO ÚNICO)
+router.patch('/:id/rating', requireLogin, async (req, res) => {
   try {
     const { rating } = req.body;
+    const userId = req.user._id;
     
-    if (rating < 1 || rating > 5) {
-      return res.status(400).json({ success: false, message: 'Rating deve estar entre 1 e 5' });
+    // Validar rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Rating deve estar entre 1 e 5' 
+      });
     }
 
+    // Buscar o produto
     const produto = await Produto.findOne({ id: req.params.id });
     if (!produto) {
-      return res.status(404).json({ success: false, message: 'Produto não encontrado' });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Produto não encontrado' 
+      });
     }
 
-    // Calcular novo rating médio
-    const totalRatings = produto.reviews;
-    const currentTotal = produto.rating * totalRatings;
-    const newTotal = currentTotal + rating;
-    const newReviews = totalRatings + 1;
-    const newRating = newTotal / newReviews;
-
-    const updatedProduto = await Produto.findOneAndUpdate(
-      { id: req.params.id },
-      { 
-        rating: Math.round(newRating * 10) / 10, // Arredondar para 1 casa decimal
-        reviews: newReviews 
-      },
-      { new: true }
+    // Verificar se o usuário já avaliou este produto
+    const alreadyRated = produto.ratings?.some(
+      r => r.userId.toString() === userId.toString()
     );
 
-    res.json({ success: true, message: 'Rating atualizado com sucesso!', data: updatedProduto });
+    if (alreadyRated) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Você já avaliou este produto',
+        alreadyRated: true 
+      });
+    }
+
+    // Inicializar array de ratings se não existir
+    if (!produto.ratings) {
+      produto.ratings = [];
+    }
+
+    // Adicionar novo rating ao array
+    produto.ratings.push({
+      userId,
+      rating: Number(rating),
+      createdAt: new Date()
+    });
+
+    // Recalcular a média de rating
+    const totalRatings = produto.ratings.length;
+    const sumRatings = produto.ratings.reduce((acc, r) => acc + r.rating, 0);
+    const newRating = sumRatings / totalRatings;
+
+    // Atualizar campos rating e reviews
+    produto.rating = Math.round(newRating * 10) / 10; // Arredondar para 1 casa decimal
+    produto.reviews = totalRatings;
+
+    // Salvar as alterações
+    await produto.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Avaliação registrada com sucesso!',
+      data: produto 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao atualizar rating', error: error.message });
+    console.error('Erro ao atualizar rating:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao avaliar produto', 
+      error: error.message 
+    });
+  }
+});
+
+// GET - Verificar se usuário já avaliou o produto
+router.get('/:id/rating/check', requireLogin, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const produto = await Produto.findOne({ id: req.params.id });
+    if (!produto) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Produto não encontrado' 
+      });
+    }
+
+    const userRating = produto.ratings?.find(
+      r => r.userId.toString() === userId.toString()
+    );
+
+    res.json({ 
+      success: true, 
+      hasRated: !!userRating,
+      rating: userRating ? userRating.rating : null
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao verificar avaliação', 
+      error: error.message 
+    });
   }
 });
 
