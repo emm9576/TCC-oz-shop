@@ -126,13 +126,78 @@ router.put('/me', requireLogin, async (req, res) => {
 });
 
 // GET - Buscar usuário por ID
+// ALTERAÇÃO: Verifica se é admin para retornar dados completos ou dados públicos
 router.get('/:id', async (req, res) => {
   try {
-    const user = await User.findOne({ id: req.params.id }).select('-password');
+    const user = await User.findOne({ 
+      id: req.params.id,
+      deleted: { $ne: true }
+    }).select('-password -deleted -__v');
+
     if (!user) {
       return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
     }
-    res.json({ success: true, data: user });
+
+    // Verificar se há token e se é admin
+    let isAdmin = false;
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+      try {
+        const jwt = await import('jsonwebtoken');
+        const decoded = jwt.default.verify(token, process.env.JWT_SECRET);
+        
+        // Buscar usuário que fez a requisição para verificar role
+        const requestUser = await User.findOne({ 
+          id: decoded.userId,
+          deleted: { $ne: true }
+        });
+        
+        if (requestUser && requestUser.role === 'admin') {
+          isAdmin = true;
+        }
+      } catch (tokenError) {
+        // Token inválido ou expirado - continua como não-admin
+        console.log('Token inválido ou expirado na requisição de perfil');
+      }
+    }
+
+    // Se for admin, retorna todos os dados (exceto senha e refreshToken)
+    if (isAdmin) {
+      return res.json({ 
+        success: true, 
+        data: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          estado: user.estado,
+          cidade: user.cidade,
+          rua: user.rua,
+          cep: user.cep,
+          role: user.role,
+          createdAt: user.createdAt,
+          _id: user._id
+        }
+      });
+    }
+
+    // Se não for admin, retorna apenas dados públicos (sem dados sensíveis)
+    return res.json({ 
+      success: true, 
+      data: {
+        id: user.id,
+        name: user.name,
+        estado: user.estado,
+        cidade: user.cidade,
+        role: user.role,
+        createdAt: user.createdAt,
+        _id: user._id
+        // NÃO retorna: email, phone, estado, cidade, rua, cep, refreshToken
+      }
+    });
+
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao buscar usuário', error: error.message });
   }
