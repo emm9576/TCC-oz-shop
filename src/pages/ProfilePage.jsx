@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, MapPin, Package, CreditCard, LogOut, Save, Edit, Trash2, Eye } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Package, CreditCard, LogOut, Save, Edit, Trash2, Eye, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,7 +26,15 @@ const ProfilePage = () => {
     rua: '',
     cidade: '',
     estado: '',
-    cep: ''
+    cep: '',
+    bio: '',
+    shareInfo: {
+      email: false,
+      phone: false,
+      estado: false,
+      cidade: false,
+      cep: false
+    }
   });
   
   const [isEditing, setIsEditing] = useState(false);
@@ -61,7 +70,15 @@ const ProfilePage = () => {
             rua: userData.rua || '',
             cidade: userData.cidade || '',
             estado: userData.estado || '',
-            cep: userData.cep || ''
+            cep: userData.cep || '',
+            bio: userData.bio || '',
+            shareInfo: userData.shareInfo || {
+              email: false,
+              phone: false,
+              estado: false,
+              cidade: false,
+              cep: false
+            }
           });
         } else {
           toast({
@@ -158,6 +175,16 @@ const ProfilePage = () => {
       [name]: value
     }));
   };
+
+  const handleShareInfoToggle = (field) => {
+    setProfileData(prev => ({
+      ...prev,
+      shareInfo: {
+        ...prev.shareInfo,
+        [field]: !prev.shareInfo[field]
+      }
+    }));
+  };
   
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -165,14 +192,22 @@ const ProfilePage = () => {
     setIsSaving(true);
     
     try {
-      const result = await updateProfile(profileData);
+      // Usar apiService.updateUser diretamente ao invés de updateProfile do context
+      const response = await apiService.updateUser('me', profileData);
       
-      if (result.success) {
+      if (response.success) {
+        toast({
+          title: "Perfil atualizado",
+          description: "Suas informações foram atualizadas com sucesso.",
+          duration: 3000,
+        });
+        
         setIsEditing(false);
+        
         // Recarregar dados do perfil após atualização
-        const response = await apiService.getMe();
-        if (response.success && response.data) {
-          const userData = response.data;
+        const updatedResponse = await apiService.getMe();
+        if (updatedResponse.success && updatedResponse.data) {
+          const userData = updatedResponse.data;
           setProfileData({
             name: userData.name || '',
             email: userData.email || '',
@@ -180,9 +215,19 @@ const ProfilePage = () => {
             rua: userData.rua || '',
             cidade: userData.cidade || '',
             estado: userData.estado || '',
-            cep: userData.cep || ''
+            cep: userData.cep || '',
+            bio: userData.bio || '',
+            shareInfo: userData.shareInfo || {
+              email: false,
+              phone: false,
+              estado: false,
+              cidade: false,
+              cep: false
+            }
           });
         }
+      } else {
+        throw new Error(response.message || 'Erro ao atualizar perfil');
       }
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
@@ -210,7 +255,6 @@ const ProfilePage = () => {
       const response = await apiService.deleteProduct(productId);
       
       if (response.success) {
-        // Remover produto da lista local
         setMyProducts(prev => prev.filter(product => product.id !== productId));
         toast({
           title: "Produto excluído",
@@ -288,7 +332,7 @@ const ProfilePage = () => {
   };
   
   if (!user) {
-    return null; // Não renderizar nada enquanto redireciona
+    return null;
   }
   
   return (
@@ -359,7 +403,8 @@ const ProfilePage = () => {
                     <p className="text-gray-500">Carregando informações...</p>
                   </div>
                 ) : (
-                  <form className="space-y-4">
+                  <form className="space-y-6">
+                    {/* Informações básicas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Nome Completo</Label>
@@ -395,7 +440,7 @@ const ProfilePage = () => {
                         </div>
                       </div>
                       
-                      <div className="space-y-2">
+                      <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="phone">Telefone</Label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -412,9 +457,28 @@ const ProfilePage = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Bio */}
+                    <div className="space-y-2">
+                      <Label htmlFor="bio">Biografia</Label>
+                      <Textarea
+                        id="bio"
+                        name="bio"
+                        value={profileData.bio}
+                        onChange={handleChange}
+                        placeholder="Conte um pouco sobre você..."
+                        className="min-h-[100px] resize-none"
+                        maxLength={500}
+                        disabled={!isEditing}
+                      />
+                      <p className="text-xs text-gray-500 text-right">
+                        {profileData.bio.length}/500 caracteres
+                      </p>
+                    </div>
                     
                     <Separator />
                     
+                    {/* Endereço */}
                     <h3 className="text-lg font-medium">Endereço</h3>
                     
                     <div className="space-y-2">
@@ -468,6 +532,121 @@ const ProfilePage = () => {
                         />
                       </div>
                     </div>
+
+                    <Separator />
+
+                    {/* Configurações de Privacidade */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-5 w-5 text-gray-600" />
+                        <h3 className="text-lg font-medium">Privacidade do Perfil</h3>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Escolha quais informações deseja compartilhar publicamente no seu perfil
+                      </p>
+
+                      <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+                        {/* Email */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-gray-500" />
+                            <Label htmlFor="share-email" className="cursor-pointer">
+                              Compartilhar email
+                            </Label>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={profileData.shareInfo.email ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleShareInfoToggle('email')}
+                            disabled={!isEditing}
+                            className="w-20"
+                          >
+                            {profileData.shareInfo.email ? 'Sim' : 'Não'}
+                          </Button>
+                        </div>
+
+                        {/* Telefone */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-gray-500" />
+                            <Label htmlFor="share-phone" className="cursor-pointer">
+                              Compartilhar telefone
+                            </Label>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={profileData.shareInfo.phone ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleShareInfoToggle('phone')}
+                            disabled={!isEditing}
+                            className="w-20"
+                          >
+                            {profileData.shareInfo.phone ? 'Sim' : 'Não'}
+                          </Button>
+                        </div>
+
+                        {/* Estado */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-gray-500" />
+                            <Label htmlFor="share-estado" className="cursor-pointer">
+                              Compartilhar estado
+                            </Label>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={profileData.shareInfo.estado ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleShareInfoToggle('estado')}
+                            disabled={!isEditing}
+                            className="w-20"
+                          >
+                            {profileData.shareInfo.estado ? 'Sim' : 'Não'}
+                          </Button>
+                        </div>
+
+                        {/* Cidade */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-gray-500" />
+                            <Label htmlFor="share-cidade" className="cursor-pointer">
+                              Compartilhar cidade
+                            </Label>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={profileData.shareInfo.cidade ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleShareInfoToggle('cidade')}
+                            disabled={!isEditing}
+                            className="w-20"
+                          >
+                            {profileData.shareInfo.cidade ? 'Sim' : 'Não'}
+                          </Button>
+                        </div>
+
+                        {/* CEP */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-gray-500" />
+                            <Label htmlFor="share-cep" className="cursor-pointer">
+                              Compartilhar CEP
+                            </Label>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={profileData.shareInfo.cep ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleShareInfoToggle('cep')}
+                            disabled={!isEditing}
+                            className="w-20"
+                          >
+                            {profileData.shareInfo.cep ? 'Sim' : 'Não'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </form>
                 )}
               </CardContent>
@@ -519,6 +698,7 @@ const ProfilePage = () => {
                         <th className="text-left py-3 px-4">Total</th>
                         <th className="text-left py-3 px-4">Status</th>
                         <th className="text-left py-3 px-4">Itens</th>
+                        <th className="text-right py-3 px-4">Ações</th>
                       </tr>
                     </thead>
                     <tbody>

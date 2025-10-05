@@ -216,6 +216,16 @@ const UserProfilePage = () => {
           <Separator />
 
           <CardContent className="pt-6">
+            {/* Bio - Seção destacada */}
+            {hasValue(userData.bio) && (
+              <div className="mb-6 pb-6 border-b">
+                <h3 className="font-semibold text-lg mb-3">Sobre</h3>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {userData.bio}
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Coluna 1 - Informações disponíveis */}
