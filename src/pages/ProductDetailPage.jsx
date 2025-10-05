@@ -12,7 +12,8 @@ import {
   Plus,
   Minus,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Edit
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,9 +35,19 @@ const ProductDetailPage = () => {
   const [buying, setBuying] = useState(false);
 
   const { addToCart, buyProduct, isInCart, getItemQuantity } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { fetchProductById } = useProducts();
   const { toast } = useToast();
+
+  // Verificar se o usuário pode editar o produto
+  const canEditProduct = () => {
+    if (!isAuthenticated || !user || !product) return false;
+    
+    const isOwner = product.seller === user.name || product.sellerId === user.id;
+    const isAdmin = user.role === 'admin' || user.isAdmin;
+    
+    return isOwner || isAdmin;
+  };
 
   // Carregar produto
   useEffect(() => {
@@ -65,6 +76,7 @@ const ProductDetailPage = () => {
     }
   }, [id, fetchProductById]);
 
+  // Callback para atualizar produto após avaliação
   const handleRatingUpdate = (updatedProduct) => {
     setProduct(updatedProduct);
   };
@@ -184,16 +196,30 @@ const ProductDetailPage = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
-        <button 
-          onClick={() => navigate('/produtos')}
-          className="hover:text-gray-900 flex items-center gap-1"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Produtos
-        </button>
-        <span>/</span>
-        <span className="text-gray-900">{product.name}</span>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <button 
+            onClick={() => navigate('/produtos')}
+            className="hover:text-gray-900 flex items-center gap-1"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Produtos
+          </button>
+          <span>/</span>
+          <span className="text-gray-900">{product.name}</span>
+        </div>
+        
+        {/* Botão de editar - apenas para admin ou dono */}
+        {canEditProduct() && (
+          <Button
+            onClick={() => navigate(`/produto/${id}/edit`)}
+            variant="outline"
+            size="sm"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Editar Produto
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">

@@ -1,18 +1,20 @@
 // src/components/ProductCard.jsx
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Star, ShoppingCart, Truck, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Star, ShoppingCart, Truck, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
+import apiService from '@/services/api';
 
 const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
   const { addToCart } = useCart();
   const { user } = useAuth() || {}; // Proteção contra contexto undefined
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Validação e valores padrão
   if (!product) {
@@ -27,6 +29,7 @@ const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
     rating = 0,
     reviews = 0,
     seller = 'Vendedor',
+    sellerId,
     stock = 0,
     image,
     imageMain,
@@ -36,13 +39,19 @@ const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
   } = product;
 
   // Usar imageMain se disponível, senão image
-  const productImage = imageMain || image || 'https://via.placeholder.com/300x300?text=Sem+Imagem';
+  const productImage = imageMain || image || 'https://i.imgur.com/sFl82h0.jpeg';
 
   // Estado para modal de exclusão
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Verificar se é admin (com verificação segura)
+  // Verificar se é admin
   const isAdmin = user && (user.role === 'admin' || user.isAdmin);
+  
+  // Verificar se é o dono do produto
+  const isOwner = user && (seller === user.name || sellerId === user.id);
+  
+  // Verificar se pode editar (admin ou dono)
+  const canEdit = isAdmin || isOwner;
 
   // Calcular preço com desconto
   const originalPrice = Number(price) || 0;
@@ -102,6 +111,12 @@ const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
     }
   };
 
+  const handleEdit = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/produto/${id}/edit`);
+  };
+
   const handleDelete = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -110,6 +125,14 @@ const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
 
   const handleConfirmDelete = async () => {
     try {
+      console.log('Tentando excluir produto ID:', id); // Debug
+      
+      // Chamar a API para deletar o produto
+      await apiService.deleteProduct(id);
+      
+      console.log('Produto excluído com sucesso'); // Debug
+      
+      // Se onDelete foi fornecido, chamar para atualizar a lista
       if (onDelete && typeof onDelete === 'function') {
         await onDelete(id);
       }
@@ -123,17 +146,23 @@ const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
       }
       
       setShowDeleteModal(false);
+      
+      // Recarregar a página para atualizar a lista
+      window.location.reload();
+      
     } catch (error) {
       console.error('Erro ao excluir produto:', error);
       
       if (toast && typeof toast === 'function') {
         toast({
           title: "Erro ao excluir",
-          description: "Não foi possível excluir o produto.",
+          description: error.message || "Não foi possível excluir o produto.",
           variant: "destructive",
           duration: 3000,
         });
       }
+      
+      setShowDeleteModal(false);
     }
   };
 
@@ -189,7 +218,7 @@ const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
                 alt={name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.target.src = 'https://via.placeholder.com/300x300?text=Sem+Imagem';
+                  e.target.src = 'https://i.imgur.com/sFl82h0.jpeg';
                 }}
               />
             </div>
@@ -261,17 +290,27 @@ const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
             </div>
           </Link>
 
-          {/* Botão de admin - apenas exclusão */}
-          {isAdmin && (
-            <div className="absolute top-2 right-2">
+          {/* Botões de ação - editar e excluir */}
+          {canEdit && (
+            <div className="absolute top-2 right-2 flex gap-1">
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 w-8 p-0 bg-white hover:bg-red-50"
-                onClick={handleDelete}
+                className="h-8 w-8 p-0 bg-white hover:bg-blue-50"
+                onClick={handleEdit}
               >
-                <Trash2 className="h-3 w-3" />
+                <Edit className="h-3 w-3" />
               </Button>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0 bg-white hover:bg-red-50"
+                  onClick={handleDelete}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           )}
         </motion.div>
@@ -297,7 +336,7 @@ const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
               alt={name}
               className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
               onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/300x300?text=Sem+Imagem';
+                e.target.src = 'https://i.imgur.com/sFl82h0.jpeg';
               }}
             />
             {discountPercent > 0 && (
@@ -377,17 +416,27 @@ const ProductCard = ({ product, viewMode = 'grid', onDelete }) => {
           </div>
         </Link>
 
-        {/* Botão de admin - apenas exclusão */}
-        {isAdmin && (
-          <div className="absolute top-2 left-2">
+        {/* Botões de ação - editar e excluir */}
+        {canEdit && (
+          <div className="absolute top-2 left-2 flex gap-1">
             <Button
               size="sm"
               variant="outline"
-              className="h-8 w-8 p-0 bg-white hover:bg-red-50"
-              onClick={handleDelete}
+              className="h-8 w-8 p-0 bg-white hover:bg-blue-50"
+              onClick={handleEdit}
             >
-              <Trash2 className="h-3 w-3" />
+              <Edit className="h-3 w-3" />
             </Button>
+            {isAdmin && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 p-0 bg-white hover:bg-red-50"
+                onClick={handleDelete}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
           </div>
         )}
       </motion.div>

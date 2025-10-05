@@ -11,6 +11,7 @@ import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import ProfilePage from '@/pages/ProfilePage';
 import SellPage from '@/pages/SellPage';
+import EditProductPage from '@/pages/EditProductPage';
 import { CartProvider } from '@/contexts/CartContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProductsProvider } from '@/contexts/ProductsContext';
@@ -28,6 +29,7 @@ function App() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/produtos" element={<ProductsPage />} />
                   <Route path="/produto/:id" element={<ProductDetailPage />} />
+                  <Route path="/produto/:id/edit" element={<EditProductPage />} />
                   <Route path="/carrinho" element={<CartPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/cadastro" element={<RegisterPage />} />
