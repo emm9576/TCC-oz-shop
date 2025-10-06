@@ -7,10 +7,13 @@ class ApiService {
   }
 
   // Configurar cabeçalhos padrão
-  getHeaders(includeAuth = true) {
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+  getHeaders(includeAuth = true, isFormData = false) {
+    const headers = {};
+
+    // Só adiciona Content-Type se não for FormData
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (includeAuth && this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
@@ -26,7 +29,7 @@ class ApiService {
     const config = {
       ...options,
       headers: {
-        ...this.getHeaders(options.requireAuth !== false),
+        ...this.getHeaders(options.requireAuth !== false, options.isFormData),
         ...options.headers,
       },
     };
@@ -54,6 +57,21 @@ class ApiService {
     } else {
       localStorage.removeItem('token');
     }
+  }
+
+  // ========================
+  // UPLOAD DE ARQUIVOS
+  // ========================
+
+  async uploadImage(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    return this.request('/upload/image', {
+      method: 'POST',
+      body: formData,
+      isFormData: true,
+    });
   }
 
   // ========================
@@ -158,6 +176,13 @@ class ApiService {
     return this.request(endpoint, { requireAuth: false });
   }
 
+  async getMyProducts() {
+    return this.request('/produtos/my-products', {
+      method: 'GET',
+      requireAuth: true,
+    });
+  }
+
   async getProductById(id) {
     return this.request(`/produtos/${id}`, { requireAuth: false });
   }
@@ -183,6 +208,7 @@ class ApiService {
     });
   }
 
+  // Verificar se usuário já avaliou o produto
   async checkUserRating(id) {
     return this.request(`/produtos/${id}/rating/check`, {
       method: 'GET',
@@ -208,16 +234,16 @@ class ApiService {
     return this.request('/produtos/frete-gratis', { requireAuth: false });
   }
 
-  async getMyProducts() {
-    return this.request('/produtos/my-products', {
+  // ========================
+  // BUY ROUTES
+  // ========================
+
+  async getMyOrders() {
+    return this.request('/orders/my-orders', {
       method: 'GET',
       requireAuth: true,
     });
   }
-
-  // ========================
-  // BUY ROUTES
-  // ========================
 
   async buyProduct(productId, quantity = 1) {
     return this.request(`/buy/${productId}`, {
@@ -243,13 +269,6 @@ class ApiService {
     const endpoint = `/orders${queryString ? `?${queryString}` : ''}`;
     
     return this.request(endpoint);
-  }
-
-  async getMyOrders() {
-    return this.request('/orders/my-orders', {
-      method: 'GET',
-      requireAuth: true,
-    });
   }
 
   async getOrderById(id) {

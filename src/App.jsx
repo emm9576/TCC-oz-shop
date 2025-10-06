@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import HomePage from '@/pages/HomePage';
 import ProductsPage from '@/pages/ProductsPage';
 import ProductDetailPage from '@/pages/ProductDetailPage';
+import EditProductPage from '@/pages/EditProductPage';
 import CartPage from '@/pages/CartPage';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
@@ -32,6 +33,7 @@ function App() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/produtos" element={<ProductsPage />} />
                   <Route path="/produto/:id" element={<ProductDetailPage />} />
+                  <Route path="/produto/:id/edit" element={<EditProductPage />} />
                   <Route path="/carrinho" element={<CartPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/cadastro" element={<RegisterPage />} />

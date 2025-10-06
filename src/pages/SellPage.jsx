@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProducts } from '@/contexts/ProductsContext';
 import { useToast } from '@/components/ui/use-toast';
+import apiService from '@/services/api';
 
 const SellPage = () => {
   const [formData, setFormData] = useState({
@@ -41,6 +42,9 @@ const SellPage = () => {
   const [currentImage, setCurrentImage] = useState('');
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { user, isAuthenticated } = useAuth();
   const { createProduct } = useProducts();
@@ -116,6 +120,117 @@ const SellPage = () => {
     }));
   };
 
+  // Função para lidar com seleção de arquivo
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  // Função para processar o arquivo selecionado
+  const processFile = (file) => {
+    // Validar tipo de arquivo
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Erro',
+        description: 'Por favor, selecione apenas arquivos de imagem',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validar tamanho do arquivo (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: 'Erro',
+        description: 'A imagem deve ter no máximo 2MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setImageFile(file);
+
+    // Criar preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+
+    // Limpar erro do campo
+    if (errors.imageMain) {
+      setErrors(prev => ({
+        ...prev,
+        imageMain: ''
+      }));
+    }
+  };
+
+  // Função para lidar com drag and drop
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  // Função para remover imagem selecionada
+  const handleRemoveSelectedImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setFormData(prev => ({
+      ...prev,
+      imageMain: ''
+    }));
+  };
+
+  // Função para fazer upload da imagem
+  const handleUploadImage = async () => {
+    if (!imageFile) {
+      return null;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const response = await apiService.uploadImage(imageFile);
+      
+      if (response.success && response.data?.base64) {
+        setFormData(prev => ({
+          ...prev,
+          imageMain: response.data.base64
+        }));
+
+        toast({
+          title: 'Sucesso',
+          description: 'Imagem enviada com sucesso',
+        });
+
+        return response.data.base64;
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      toast({
+        title: 'Erro',
+        description: error.message || 'Erro ao fazer upload da imagem. Tente novamente.',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -140,7 +255,7 @@ const SellPage = () => {
       newErrors.stock = 'Estoque deve ser maior que zero';
     }
 
-    if (!formData.imageMain.trim()) {
+    if (!imageFile && !formData.imageMain.trim()) {
       newErrors.imageMain = 'Imagem principal é obrigatória';
     }
 
@@ -163,8 +278,19 @@ const SellPage = () => {
     setIsSubmitting(true);
 
     try {
+      // Se há um arquivo selecionado, fazer upload primeiro
+      let imageUrl = formData.imageMain;
+      if (imageFile && !formData.imageMain) {
+        imageUrl = await handleUploadImage();
+        if (!imageUrl) {
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const productData = {
         ...formData,
+        imageMain: imageUrl,
         price: parseFloat(formData.price),
         discount: formData.discount ? parseFloat(formData.discount) : 0,
         stock: parseInt(formData.stock),
@@ -362,20 +488,83 @@ const SellPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Upload de Imagem Principal */}
                 <div className="space-y-2">
-                  <Label htmlFor="imageMain">Imagem Principal (URL) *</Label>
+                  <Label>Imagem Principal *</Label>
+                  
+                  {!imagePreview ? (
+                    <div
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                        errors.imageMain 
+                          ? 'border-red-500 bg-red-50' 
+                          : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                      }`}
+                      onClick={() => document.getElementById('imageUpload').click()}
+                    >
+                      <input
+                        id="imageUpload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p className="text-gray-600 mb-2">
+                        Arraste uma imagem ou clique para selecionar
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        PNG, JPG, GIF, WEBP até 2MB
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="relative border-2 border-gray-300 rounded-lg p-4">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-64 object-contain rounded"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={handleRemoveSelectedImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded">
+                          <Loader2 className="h-8 w-8 text-white animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {errors.imageMain && (
+                    <p className="text-sm text-red-500">{errors.imageMain}</p>
+                  )}
+                </div>
+
+                {/* URL da Imagem Principal (opcional) */}
+                <div className="space-y-2">
+                  <Label htmlFor="imageMain">Ou insira a URL da imagem</Label>
                   <Input
                     id="imageMain"
                     name="imageMain"
                     type="url"
                     placeholder="https://exemplo.com/imagem.jpg"
-                    value={formData.imageMain}
-                    onChange={handleChange}
-                    className={errors.imageMain ? 'border-red-500' : ''}
+                    value={imageFile ? '' : formData.imageMain}
+                    onChange={(e) => {
+                      handleChange(e);
+                      if (e.target.value && imagePreview) {
+                        setImageFile(null);
+                        setImagePreview(null);
+                      }
+                    }}
+                    disabled={!!imageFile}
                   />
-                  {errors.imageMain && (
-                    <p className="text-sm text-red-500">{errors.imageMain}</p>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -473,7 +662,7 @@ const SellPage = () => {
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || isUploading}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

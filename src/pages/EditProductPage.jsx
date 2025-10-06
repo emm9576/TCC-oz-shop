@@ -48,6 +48,10 @@ const EditProductPage = () => {
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState(null);
   const [permissionError, setPermissionError] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageType, setImageType] = useState('url');
 
   const { user, isAuthenticated } = useAuth();
   const { fetchProductById, updateProduct } = useProducts();
@@ -65,6 +69,12 @@ const EditProductPage = () => {
     { value: 'Automotive', label: 'Automotivo' },
   ];
 
+  // Função para detectar se a imagem é URL ou base64
+  const detectImageType = (imageString) => {
+    if (!imageString) return 'url';
+    return imageString.startsWith('data:image') ? 'base64' : 'url';
+  };
+
   // Carregar produto
   useEffect(() => {
     const loadProduct = async () => {
@@ -76,6 +86,8 @@ const EditProductPage = () => {
           const productData = result.data;
           setProduct(productData);
           
+          const mainImage = productData.imageMain || productData.image || '';
+          
           // Preencher formulário com dados do produto
           setFormData({
             name: productData.name || '',
@@ -84,11 +96,19 @@ const EditProductPage = () => {
             price: productData.price?.toString() || '',
             discount: productData.discount?.toString() || '0',
             stock: productData.stock?.toString() || '',
-            imageMain: productData.imageMain || productData.image || '',
+            imageMain: mainImage,
             images: productData.images || [],
             features: productData.features || [],
             freteGratis: productData.freteGratis || false,
           });
+
+          // Detectar tipo de imagem e configurar preview
+          const imgType = detectImageType(mainImage);
+          setImageType(imgType);
+          
+          if (imgType === 'base64') {
+            setImagePreview(mainImage);
+          }
         } else {
           toast({
             title: "Erro",
@@ -119,11 +139,6 @@ const EditProductPage = () => {
 
   // Verificar permissões
   useEffect(() => {
-    /*if (!isAuthenticated) {
-      navigate('/login', { state: { from: { pathname: `/produto/${id}/edit` } } });
-      return;
-    }*/
-
     if (product && user) {
       const isOwner = product.seller === user.name || product.sellerId === user.id;
       const isAdmin = user.role === 'admin' || user.isAdmin;
@@ -138,7 +153,7 @@ const EditProductPage = () => {
         navigate(`/produto/${id}`);
       }
     }
-  }, [isAuthenticated, product, user, id, navigate, toast]);
+  }, [product, user, id, navigate, toast]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -191,6 +206,119 @@ const EditProductPage = () => {
     }));
   };
 
+  // Função para lidar com seleção de arquivo
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  // Função para processar o arquivo selecionado
+  const processFile = (file) => {
+    // Validar tipo de arquivo
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Erro',
+        description: 'Por favor, selecione apenas arquivos de imagem',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validar tamanho do arquivo (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: 'Erro',
+        description: 'A imagem deve ter no máximo 2MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setImageFile(file);
+    setImageType('file');
+
+    // Criar preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+
+    // Limpar erro do campo
+    if (errors.imageMain) {
+      setErrors(prev => ({
+        ...prev,
+        imageMain: ''
+      }));
+    }
+  };
+
+  // Função para lidar com drag and drop
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  // Função para remover imagem selecionada
+  const handleRemoveSelectedImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setImageType('url');
+    setFormData(prev => ({
+      ...prev,
+      imageMain: ''
+    }));
+  };
+
+  // Função para fazer upload da imagem
+  const handleUploadImage = async () => {
+    if (!imageFile) {
+      return null;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const response = await apiService.uploadImage(imageFile);
+      
+      if (response.success && response.data?.base64) {
+        setFormData(prev => ({
+          ...prev,
+          imageMain: response.data.base64
+        }));
+
+        toast({
+          title: 'Sucesso',
+          description: 'Imagem enviada com sucesso',
+        });
+
+        return response.data.base64;
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      toast({
+        title: 'Erro',
+        description: error.message || 'Erro ao fazer upload da imagem. Tente novamente.',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -215,7 +343,7 @@ const EditProductPage = () => {
       newErrors.stock = 'Estoque deve ser um número válido';
     }
 
-    if (!formData.imageMain.trim()) {
+    if (!imageFile && !formData.imageMain.trim()) {
       newErrors.imageMain = 'Imagem principal é obrigatória';
     }
 
@@ -238,8 +366,19 @@ const EditProductPage = () => {
     setIsSubmitting(true);
 
     try {
+      // Se há um arquivo novo selecionado, fazer upload primeiro
+      let imageUrl = formData.imageMain;
+      if (imageFile) {
+        imageUrl = await handleUploadImage();
+        if (!imageUrl) {
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const productData = {
         ...formData,
+        imageMain: imageUrl,
         price: parseFloat(formData.price),
         discount: formData.discount ? parseFloat(formData.discount) : 0,
         stock: parseInt(formData.stock),
@@ -482,8 +621,78 @@ const EditProductPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Upload de Imagem Principal */}
                 <div className="space-y-2">
-                  <Label htmlFor="imageMain">Imagem Principal (URL) *</Label>
+                  <Label>Imagem Principal *</Label>
+                  
+                  {!imagePreview ? (
+                    <div
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                        errors.imageMain 
+                          ? 'border-red-500 bg-red-50' 
+                          : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                      }`}
+                      onClick={() => document.getElementById('imageUpload').click()}
+                    >
+                      <input
+                        id="imageUpload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p className="text-gray-600 mb-2">
+                        Arraste uma imagem ou clique para selecionar
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        PNG, JPG, GIF, WEBP até 2MB
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="relative border-2 border-gray-300 rounded-lg p-4">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-64 object-contain rounded"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={handleRemoveSelectedImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded">
+                          <Loader2 className="h-8 w-8 text-white animate-spin" />
+                        </div>
+                      )}
+                      {imageType === 'base64' && !imageFile && (
+                        <div className="absolute bottom-2 left-2">
+                          <Badge variant="secondary">Imagem atual</Badge>
+                        </div>
+                      )}
+                      {imageFile && (
+                        <div className="absolute bottom-2 left-2">
+                          <Badge variant="default">Nova imagem</Badge>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {errors.imageMain && (
+                    <p className="text-sm text-red-500">{errors.imageMain}</p>
+                  )}
+                </div>
+
+                {/* URL da Imagem Principal (opcional) */}
+                <div className="space-y-2">
+                  <Label htmlFor="imageMain">Ou insira a URL da imagem</Label>
                   <Input
                     id="imageMain"
                     name="imageMain"
@@ -491,11 +700,8 @@ const EditProductPage = () => {
                     placeholder="https://exemplo.com/imagem.jpg"
                     value={formData.imageMain}
                     onChange={handleChange}
-                    className={errors.imageMain ? 'border-red-500' : ''}
+                    disabled={!!imageFile}
                   />
-                  {errors.imageMain && (
-                    <p className="text-sm text-red-500">{errors.imageMain}</p>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -593,7 +799,7 @@ const EditProductPage = () => {
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || isUploading}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
