@@ -7,13 +7,10 @@ class ApiService {
   }
 
   // Configurar cabeçalhos padrão
-  getHeaders(includeAuth = true, isFormData = false) {
-    const headers = {};
-
-    // Só adiciona Content-Type se não for FormData
-    if (!isFormData) {
-      headers['Content-Type'] = 'application/json';
-    }
+  getHeaders(includeAuth = true) {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
 
     if (includeAuth && this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
@@ -29,7 +26,7 @@ class ApiService {
     const config = {
       ...options,
       headers: {
-        ...this.getHeaders(options.requireAuth !== false, options.isFormData),
+        ...this.getHeaders(options.requireAuth !== false),
         ...options.headers,
       },
     };
@@ -57,21 +54,6 @@ class ApiService {
     } else {
       localStorage.removeItem('token');
     }
-  }
-
-  // ========================
-  // UPLOAD DE ARQUIVOS
-  // ========================
-
-  async uploadImage(file) {
-    const formData = new FormData();
-    formData.append('image', file);
-
-    return this.request('/upload/image', {
-      method: 'POST',
-      body: formData,
-      isFormData: true,
-    });
   }
 
   // ========================
@@ -151,6 +133,14 @@ class ApiService {
     });
   }
 
+  // Método para atualizar foto de perfil
+  async updateProfilePicture(profilePicture) {
+    return this.request('/users/me/profile-picture', {
+      method: 'PUT',
+      body: JSON.stringify({ profilePicture }),
+    });
+  }
+
   async deleteUser(id) {
     return this.request(`/users/${id}`, {
       method: 'DELETE',
@@ -174,13 +164,6 @@ class ApiService {
     const endpoint = `/produtos${queryString ? `?${queryString}` : ''}`;
     
     return this.request(endpoint, { requireAuth: false });
-  }
-
-  async getMyProducts() {
-    return this.request('/produtos/my-products', {
-      method: 'GET',
-      requireAuth: true,
-    });
   }
 
   async getProductById(id) {
@@ -232,6 +215,10 @@ class ApiService {
 
   async getProductsWithFreeShipping() {
     return this.request('/produtos/frete-gratis', { requireAuth: false });
+  }
+
+  async getMyProducts() {
+    return this.request('/produtos/seller/me', { requireAuth: true });
   }
 
   // ========================
@@ -301,6 +288,38 @@ class ApiService {
 
   async getOrdersByStatus(status) {
     return this.request(`/orders/status/${status}`);
+  }
+
+  // ========================
+  // UPLOAD ROUTES
+  // ========================
+
+  async uploadImage(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const url = `${API_BASE_URL}/upload/image`;
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erro ao fazer upload da imagem');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Upload Error:', error);
+      throw error;
+    }
   }
 }
 

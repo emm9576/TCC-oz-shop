@@ -43,8 +43,7 @@ router.get('/me', requireLogin, async (req, res) => {
         cidade: user.cidade,
         rua: user.rua,
         cep: user.cep,
-        bio: user.bio,
-        shareInfo: user.shareInfo,
+        profilePicture: user.profilePicture,
         role: user.role,
         createdAt: user.createdAt,
         _id: user._id
@@ -62,7 +61,7 @@ router.get('/me', requireLogin, async (req, res) => {
 // PUT - Atualizar dados do próprio usuário logado
 router.put('/me', requireLogin, async (req, res) => {
   try {
-    const { name, email, phone, estado, cidade, rua, cep, bio, shareInfo } = req.body;
+    const { name, email, phone, estado, cidade, rua, cep } = req.body;
     
     // Verificar se o email já está em uso por outro usuário
     if (email && email !== req.user.email) {
@@ -80,21 +79,17 @@ router.put('/me', requireLogin, async (req, res) => {
       }
     }
     
-    // Preparar objeto de atualização
-    const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (email !== undefined) updateData.email = email;
-    if (phone !== undefined) updateData.phone = phone;
-    if (estado !== undefined) updateData.estado = estado;
-    if (cidade !== undefined) updateData.cidade = cidade;
-    if (rua !== undefined) updateData.rua = rua;
-    if (cep !== undefined) updateData.cep = cep;
-    if (bio !== undefined) updateData.bio = bio;
-    if (shareInfo !== undefined) updateData.shareInfo = shareInfo;
-    
     const updatedUser = await User.findOneAndUpdate(
       { id: req.user.id },
-      updateData,
+      { 
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(phone && { phone }),
+        ...(estado !== undefined && { estado }),
+        ...(cidade !== undefined && { cidade }),
+        ...(rua !== undefined && { rua }),
+        ...(cep !== undefined && { cep })
+      },
       { new: true, runValidators: true }
     ).select('-password -deleted -__v');
 
@@ -117,8 +112,7 @@ router.put('/me', requireLogin, async (req, res) => {
         cidade: updatedUser.cidade,
         rua: updatedUser.rua,
         cep: updatedUser.cep,
-        bio: updatedUser.bio,
-        shareInfo: updatedUser.shareInfo,
+        profilePicture: updatedUser.profilePicture,
         role: updatedUser.role,
         createdAt: updatedUser.createdAt,
         _id: updatedUser._id
@@ -133,108 +127,66 @@ router.put('/me', requireLogin, async (req, res) => {
   }
 });
 
-// GET - Buscar usuário por ID
-// ALTERAÇÃO: Verifica se é admin OU respeita as configurações de shareInfo
-router.get('/:id', async (req, res) => {
+// PUT - Atualizar foto de perfil do usuário logado
+router.put('/me/profile-picture', requireLogin, async (req, res) => {
   try {
-    const user = await User.findOne({ 
-      id: req.params.id,
-      deleted: { $ne: true }
-    }).select('-password -deleted -__v');
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    const { profilePicture } = req.body;
+    
+    if (!profilePicture) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'URL ou Base64 da imagem é obrigatória' 
+      });
     }
+    
+    const updatedUser = await User.findOneAndUpdate(
+      { id: req.user.id },
+      { profilePicture },
+      { new: true, runValidators: true }
+    ).select('-password -deleted -__v');
 
-    // Verificar se há token e se é admin
-    let isAdmin = false;
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (token) {
-      try {
-        const jwt = await import('jsonwebtoken');
-        const decoded = jwt.default.verify(token, process.env.JWT_SECRET);
-        
-        // Buscar usuário que fez a requisição para verificar role
-        const requestUser = await User.findOne({ 
-          id: decoded.userId,
-          deleted: { $ne: true }
-        });
-        
-        if (requestUser && requestUser.role === 'admin') {
-          isAdmin = true;
-        }
-      } catch (tokenError) {
-        // Token inválido ou expirado - continua como não-admin
-        console.log('Token inválido ou expirado na requisição de perfil');
-      }
-    }
-
-    // Se for admin, retorna todos os dados (exceto senha e refreshToken)
-    if (isAdmin) {
-      return res.json({ 
-        success: true, 
-        data: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          estado: user.estado,
-          cidade: user.cidade,
-          rua: user.rua,
-          cep: user.cep,
-          bio: user.bio,
-          shareInfo: user.shareInfo,
-          role: user.role,
-          createdAt: user.createdAt,
-          _id: user._id
-        }
+    if (!updatedUser) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Usuário não encontrado' 
       });
     }
 
-    // Se não for admin, respeita as configurações de shareInfo
-    // Garantir que shareInfo existe e tem a estrutura correta
-    const shareInfo = user.shareInfo && typeof user.shareInfo === 'object' ? user.shareInfo : {
-      email: false,
-      phone: false,
-      estado: false,
-      cidade: false,
-      cep: false
-    };
-
-    const publicData = {
-      id: user.id,
-      name: user.name,
-      bio: user.bio, // Bio é sempre público
-      role: user.role,
-      createdAt: user.createdAt,
-      _id: user._id
-    };
-
-    // Adicionar campos opcionais baseado em shareInfo
-    // Verificar explicitamente se o valor é true (booleano)
-    if (shareInfo.email === true && user.email) {
-      publicData.email = user.email;
-    }
-    if (shareInfo.phone === true && user.phone) {
-      publicData.phone = user.phone;
-    }
-    if (shareInfo.estado === true && user.estado) {
-      publicData.estado = user.estado;
-    }
-    if (shareInfo.cidade === true && user.cidade) {
-      publicData.cidade = user.cidade;
-    }
-    if (shareInfo.cep === true && user.cep) {
-      publicData.cep = user.cep;
-    }
-
-    return res.json({ 
+    res.json({ 
       success: true, 
-      data: publicData
+      message: 'Foto de perfil atualizada com sucesso!', 
+      data: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        estado: updatedUser.estado,
+        cidade: updatedUser.cidade,
+        rua: updatedUser.rua,
+        cep: updatedUser.cep,
+        profilePicture: updatedUser.profilePicture,
+        role: updatedUser.role,
+        createdAt: updatedUser.createdAt,
+        _id: updatedUser._id
+      }
     });
+  } catch (error) {
+    res.status(400).json({ 
+      success: false, 
+      message: 'Erro ao atualizar foto de perfil', 
+      error: error.message 
+    });
+  }
+});
 
+// GET - Buscar usuário por ID
+router.get('/:id', async (req, res) => {
+  try {
+    const user = await User.findOne({ id: req.params.id }).select('-password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
+    res.json({ success: true, data: user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao buscar usuário', error: error.message });
   }
@@ -243,21 +195,11 @@ router.get('/:id', async (req, res) => {
 // PUT - Atualizar usuário (apenas para admin)
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
-    const { name, email, phone, estado, cidade, rua, cep, bio, shareInfo } = req.body;
+    const { name, email, phone, estado, cidade, rua, cep } = req.body;
     
     const updatedUser = await User.findOneAndUpdate(
       { id: req.params.id },
-      { 
-        ...(name && { name }),
-        ...(email && { email }),
-        ...(phone && { phone }),
-        ...(estado !== undefined && { estado }),
-        ...(cidade !== undefined && { cidade }),
-        ...(rua !== undefined && { rua }),
-        ...(cep !== undefined && { cep }),
-        ...(bio !== undefined && { bio }),
-        ...(shareInfo !== undefined && { shareInfo })
-      },
+      { name, email, phone, estado, cidade, rua, cep },
       { new: true, runValidators: true }
     ).select('-password');
 
@@ -285,8 +227,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
         cidade: "",
         rua: "",
         cep: "",
-        bio: "",
-        shareInfo: ""
+        profilePicture: ""
       }
     };
 

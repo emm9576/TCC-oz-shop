@@ -14,34 +14,7 @@ const UserSchema = new mongoose.Schema({
     cidade: { type: String, required: false },
     rua: { type: String, required: false },
     cep: { type: String, required: false },
-    
-    // Novo campo: biografia do usuário
-    bio: {
-        type: String, 
-        required: false,
-        trim: true,
-        maxlength: 500 // Limite de 500 caracteres
-    },
-    
-    // Novo campo: configurações de compartilhamento de informações
-    shareInfo: {
-        type: {
-            email: { type: Boolean, default: false },
-            phone: { type: Boolean, default: false },
-            estado: { type: Boolean, default: false },
-            cidade: { type: Boolean, default: false },
-            cep: { type: Boolean, default: false }
-        },
-        default: {
-            email: false,
-            phone: false,
-            estado: false,
-            cidade: false,
-            cep: false
-        },
-        required: false
-    },
-    
+    profilePicture: { type: String, required: false, default: '' }, // URL ou Base64 da foto de perfil
     role: { 
         type: String, 
         enum: ['user', 'admin'], 
@@ -114,8 +87,7 @@ UserSchema.pre('deleteOne', { document: true, query: false }, async function(nex
                     cidade: null,
                     rua: null,
                     cep: null,
-                    bio: null,
-                    shareInfo: null,
+                    profilePicture: null,
                     createdAt: this.createdAt, // mantém a data original
                     deleted: true
                 }
