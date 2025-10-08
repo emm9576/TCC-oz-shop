@@ -51,18 +51,23 @@ router.get('/', async (req, res) => {
 // GET - Buscar produtos do usuário logado
 router.get('/my-products', requireLogin, async (req, res) => {
   try {
-    const user = await User.findOne({ id: req.user.id });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
-    }
-
-    const produtos = await Produto.find({ userId: user._id })
-      .populate('userId', 'id name email phone estado cidade')
-      .sort({ createdAt: -1 });
-    
-    res.json({ success: true, data: produtos });
+      const userId = req.user.id;
+      
+      // Buscar produtos onde o sellerId é o ID do usuário logado
+      const produtos = await Produto.find({ sellerId: userId }).sort({ createdAt: -1 });
+      
+      res.json({
+          success: true,
+          message: 'Produtos do usuário recuperados com sucesso',
+          data: produtos
+      });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao buscar seus produtos', error: error.message });
+      console.error('Erro ao buscar produtos do usuário:', error);
+      res.status(500).json({
+          success: false,
+          message: 'Erro ao buscar produtos do usuário',
+          error: error.message
+      });
   }
 });
 
