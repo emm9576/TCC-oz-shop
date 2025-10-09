@@ -128,6 +128,14 @@ class ApiService {
     return this.request(`/users/${id}`);
   }
 
+  async updateMe(userData) {
+    return this.request('/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+      requireAuth: true,
+    });
+  }
+
   async updateUser(id, userData) {
     return this.request(`/users/${id}`, {
       method: 'PUT',

@@ -124,16 +124,18 @@ const ProfileTab = ({
       if (uploadMethod === 'url') {
         profilePictureUrl = imageUrl.trim();
       } else {
+        // CORREÇÃO: Agora usa result.data.url ao invés de result.data.base64
         const result = await apiService.uploadImage(selectedFile);
 
         if (!result.success) {
           throw new Error(result.message || 'Erro ao fazer upload da imagem');
         }
 
-        profilePictureUrl = result.data.base64;
+        // A API agora retorna URL do Cloudinary em result.data.url
+        profilePictureUrl = result.data.url;
       }
 
-      const updateResult = await apiService.updateUser(user.id, {
+      const updateResult = await apiService.updateMe({
         profilePicture: profilePictureUrl
       });
 

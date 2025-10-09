@@ -118,7 +118,7 @@ UserSchema.pre('deleteOne', { document: true, query: false }, async function(nex
                     cep: null,
                     bio: null,
                     shareInfo: null,
-                    profilePicture: updatedUser.profilePicture,
+                    profilePicture: null,
                     createdAt: this.createdAt, // mantém a data original
                     deleted: true
                 }

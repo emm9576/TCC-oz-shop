@@ -1,7 +1,16 @@
 import express from 'express';
 import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
 
 const router = express.Router();
+
+// Configurar Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
 
 // Configurar multer para armazenar em memória
 const storage = multer.memoryStorage();
@@ -26,10 +35,28 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
+// Função auxiliar para fazer upload no Cloudinary
+const uploadToCloudinary = (buffer, mimetype) => {
+  return new Promise((resolve, reject) => {
+    const base64Image = `data:${mimetype};base64,${buffer.toString('base64')}`;
+    
+    cloudinary.uploader.upload(base64Image, {
+      folder: 'oz-shop',
+      resource_type: 'auto'
+    }, (error, result) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+};
+
 // POST - Upload de imagem única
 // O campo deve se chamar 'image' no form-data
 router.post('/image', (req, res) => {
-  upload.single('image')(req, res, (err) => {
+  upload.single('image')(req, res, async (err) => {
     // Tratamento de erros do multer
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -63,34 +90,42 @@ router.post('/image', (req, res) => {
       });
     }
 
-    // Converter para Base64
-    const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    try {
+      // Upload para Cloudinary
+      const result = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
 
-    // Calcular tamanho para exibição
-    const sizeInKB = Buffer.byteLength(base64Image, 'utf8') / 1024;
-    const sizeInMB = sizeInKB / 1024;
-    
-    const sizeFormatted = sizeInMB >= 1 
-      ? `${sizeInMB.toFixed(2)}MB` 
-      : `${sizeInKB.toFixed(2)}KB`;
+      // Calcular tamanho para exibição
+      const sizeInKB = req.file.size / 1024;
+      const sizeInMB = sizeInKB / 1024;
+      
+      const sizeFormatted = sizeInMB >= 1 
+        ? `${sizeInMB.toFixed(2)}MB` 
+        : `${sizeInKB.toFixed(2)}KB`;
 
-    res.json({ 
-      success: true, 
-      message: 'Imagem convertida com sucesso!',
-      data: {
-        base64: base64Image,
-        size: sizeFormatted,
-        mimetype: req.file.mimetype,
-        originalName: req.file.originalname
-      }
-    });
+      res.json({ 
+        success: true, 
+        message: 'Imagem enviada com sucesso!',
+        data: {
+          url: result.secure_url,
+          size: sizeFormatted,
+          mimetype: req.file.mimetype,
+          originalName: req.file.originalname
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao enviar para Cloudinary:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao fazer upload da imagem.' 
+      });
+    }
   });
 });
 
 // POST - Upload de múltiplas imagens (máximo 5)
 // Os campos devem se chamar 'images' no form-data
 router.post('/images', (req, res) => {
-  upload.array('images', 5)(req, res, (err) => {
+  upload.array('images', 5)(req, res, async (err) => {
     // Tratamento de erros do multer
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -124,31 +159,44 @@ router.post('/images', (req, res) => {
       });
     }
 
-    // Converter todos os arquivos para Base64
-    const base64Images = [];
-    
-    for (const file of req.files) {
-      const base64Image = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-      const sizeInKB = Buffer.byteLength(base64Image, 'utf8') / 1024;
-      const sizeInMB = sizeInKB / 1024;
+    try {
+      // Upload de todos os arquivos para Cloudinary
+      const uploadPromises = req.files.map(file => 
+        uploadToCloudinary(file.buffer, file.mimetype)
+      );
 
-      const sizeFormatted = sizeInMB >= 1 
-        ? `${sizeInMB.toFixed(2)}MB` 
-        : `${sizeInKB.toFixed(2)}KB`;
+      const results = await Promise.all(uploadPromises);
 
-      base64Images.push({
-        base64: base64Image,
-        size: sizeFormatted,
-        mimetype: file.mimetype,
-        originalName: file.originalname
+      // Formatar resposta com informações das imagens
+      const imagesData = results.map((result, index) => {
+        const file = req.files[index];
+        const sizeInKB = file.size / 1024;
+        const sizeInMB = sizeInKB / 1024;
+
+        const sizeFormatted = sizeInMB >= 1 
+          ? `${sizeInMB.toFixed(2)}MB` 
+          : `${sizeInKB.toFixed(2)}KB`;
+
+        return {
+          url: result.secure_url,
+          size: sizeFormatted,
+          mimetype: file.mimetype,
+          originalName: file.originalname
+        };
+      });
+
+      res.json({ 
+        success: true, 
+        message: `${imagesData.length} imagem(ns) enviada(s) com sucesso!`,
+        data: imagesData
+      });
+    } catch (error) {
+      console.error('Erro ao enviar para Cloudinary:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao fazer upload das imagens.' 
       });
     }
-
-    res.json({ 
-      success: true, 
-      message: `${base64Images.length} imagem(ns) convertida(s) com sucesso!`,
-      data: base64Images
-    });
   });
 });
 
