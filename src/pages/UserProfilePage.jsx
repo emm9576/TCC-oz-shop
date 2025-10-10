@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import apiService from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -174,11 +174,12 @@ const UserProfilePage = () => {
           <CardHeader className="pb-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <Avatar className="w-20 h-20">
-                  <AvatarFallback className="text-2xl bg-blue-600 text-white">
-                    {getInitials(userData.name)}
-                  </AvatarFallback>
-                </Avatar>
+              <Avatar className="w-20 h-20">
+                <AvatarImage src={userData.profilePicture || ""} />
+                <AvatarFallback className="text-2xl bg-blue-600 text-white">
+                  {getInitials(userData.name)}
+                </AvatarFallback>
+              </Avatar>
                 <div>
                   <CardTitle className="text-2xl mb-2">{userData.name}</CardTitle>
                   {hasValue(userData.role) && (

@@ -67,6 +67,7 @@ const ProfilePage = () => {
             estado: userData.estado || '',
             cep: userData.cep || '',
             bio: userData.bio || '',
+            profilePicture: userData.profilePicture || '',
             shareInfo: userData.shareInfo || {
               email: false,
               phone: false,
@@ -210,6 +211,7 @@ const ProfilePage = () => {
             estado: userData.estado || '',
             cep: userData.cep || '',
             bio: userData.bio || '',
+            profilePicture: userData.profilePicture || '',
             shareInfo: userData.shareInfo || {
               email: false,
               phone: false,

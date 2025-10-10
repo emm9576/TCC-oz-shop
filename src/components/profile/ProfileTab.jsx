@@ -190,7 +190,7 @@ const ProfileTab = ({
               onClick={() => setShowUploadModal(true)}
             >
               <Avatar className="h-24 w-24">
-                <AvatarImage src={profileData.profilePicture || user.profilePicture || ""} />
+               <AvatarImage src={user.profilePicture || profileData.profilePicture || ""} />
                 <AvatarFallback className="text-2xl bg-primary text-white">
                   {user.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                 </AvatarFallback>
