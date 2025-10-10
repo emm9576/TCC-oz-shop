@@ -48,7 +48,6 @@ router.get('/me', requireLogin, async (req, res) => {
         profilePicture: user.profilePicture,
         role: user.role,
         createdAt: user.createdAt,
-        _id: user._id
       }
     });
   } catch (error) {
@@ -124,7 +123,6 @@ router.put('/me', requireLogin, async (req, res) => {
         profilePicture: updatedUser.profilePicture,
         role: updatedUser.role,
         createdAt: updatedUser.createdAt,
-        _id: updatedUser._id
       }
     });
   } catch (error) {
@@ -192,7 +190,6 @@ router.get('/:id', async (req, res) => {
           profilePicture: user.profilePicture,
           role: user.role,
           createdAt: user.createdAt,
-          _id: user._id
         }
       });
     }
@@ -211,9 +208,9 @@ router.get('/:id', async (req, res) => {
       id: user.id,
       name: user.name,
       bio: user.bio, // Bio é sempre público
+      profilePicture: user.profilePicture, // Foto de perfil é sempre pública
       role: user.role,
       createdAt: user.createdAt,
-      _id: user._id
     };
 
     // Adicionar campos opcionais baseado em shareInfo
