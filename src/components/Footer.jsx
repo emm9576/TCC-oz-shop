@@ -56,7 +56,7 @@ const Footer = () => {
             <ul className="space-y-2">
               <li>
                 <Link
-                  to="/produtos?categoria=Electronics"
+                  to="/produtos?category=Electronics"
                   className="text-gray-400 hover:text-primary transition-colors"
                 >
                   Eletrônicos
@@ -64,7 +64,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/produtos?categoria=Fashion"
+                  to="/produtos?category=Fashion"
                   className="text-gray-400 hover:text-primary transition-colors"
                 >
                   Moda
@@ -72,7 +72,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/produtos?categoria=Home"
+                  to="/produtos?category=Home"
                   className="text-gray-400 hover:text-primary transition-colors"
                 >
                   Casa e Decoração
@@ -80,7 +80,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/produtos?categoria=Sports"
+                  to="/produtos?category=Sports"
                   className="text-gray-400 hover:text-primary transition-colors"
                 >
                   Esportes
@@ -88,7 +88,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/produtos?categoria=Beauty"
+                  to="/produtos?category=Beauty"
                   className="text-gray-400 hover:text-primary transition-colors"
                 >
                   Beleza e Saúde

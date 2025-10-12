@@ -1,21 +1,20 @@
-
+import { motion } from 'framer-motion';
+import { Dumbbell, Home, Shirt, ShoppingBag, Smartphone, Sparkles } from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Smartphone, Shirt, Home, Dumbbell, Sparkles, ShoppingBag } from 'lucide-react';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.5 }
+  transition: { duration: 0.5 },
 };
 
 const staggerContainer = {
   animate: {
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const getCategoryIcon = (iconName) => {
@@ -24,7 +23,7 @@ const getCategoryIcon = (iconName) => {
     Shirt: <Shirt className="h-6 w-6" />,
     Home: <Home className="h-6 w-6" />,
     Dumbbell: <Dumbbell className="h-6 w-6" />,
-    Sparkles: <Sparkles className="h-6 w-6" />
+    Sparkles: <Sparkles className="h-6 w-6" />,
   };
   return icons[iconName] || <ShoppingBag className="h-6 w-6" />;
 };
@@ -42,7 +41,7 @@ const CategoriesSection = ({ categories }) => {
           <h2 className="text-3xl font-bold mb-2">Navegue por Categorias</h2>
           <p className="text-gray-600">Encontre exatamente o que você está procurando</p>
         </motion.div>
-        
+
         <motion.div
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
           variants={staggerContainer}
@@ -50,13 +49,9 @@ const CategoriesSection = ({ categories }) => {
           animate="animate"
         >
           {categories.map((category) => (
-            <motion.div
-              key={category.id}
-              variants={fadeInUp}
-              className="category-item"
-            >
+            <motion.div key={category.id} variants={fadeInUp} className="category-item">
               <Link
-                to={`/produtos?categoria=${category.id}`}
+                to={`/produtos?category=${category.id}`}
                 className="flex flex-col items-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="bg-primary/10 p-4 rounded-full mb-4 category-icon">

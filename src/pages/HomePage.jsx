@@ -9,7 +9,7 @@ import {
   ShoppingBag,
   Smartphone,
   Sparkles,
-  Truck
+  Truck,
 } from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -30,15 +30,15 @@ const HomePage = () => {
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.5 }
+    transition: { duration: 0.5 },
   };
 
   const staggerContainer = {
     animate: {
       transition: {
-        staggerChildren: 0.1
-      }
-    }
+        staggerChildren: 0.1,
+      },
+    },
   };
 
   // Mapeamento de ícones para categorias
@@ -48,7 +48,7 @@ const HomePage = () => {
       Shirt: <Shirt className="h-6 w-6" />,
       Home: <Home className="h-6 w-6" />,
       Dumbbell: <Dumbbell className="h-6 w-6" />,
-      Sparkles: <Sparkles className="h-6 w-6" />
+      Sparkles: <Sparkles className="h-6 w-6" />,
     };
 
     return icons[iconName] || <ShoppingBag className="h-6 w-6" />;
@@ -144,7 +144,7 @@ const HomePage = () => {
             {categories.map((category) => (
               <motion.div key={category.id} variants={fadeInUp} className="category-item">
                 <Link
-                  to={`/produtos?categoria=${category.id}`}
+                  to={`/produtos?category=${category.id}`}
                   className="flex flex-col items-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="bg-primary/10 p-4 rounded-full mb-4 category-icon">
