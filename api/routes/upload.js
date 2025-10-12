@@ -1,6 +1,6 @@
+import { v2 as cloudinary } from 'cloudinary';
 import express from 'express';
 import multer from 'multer';
-import { v2 as cloudinary } from 'cloudinary';
 
 const router = express.Router();
 
@@ -11,14 +11,13 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-
 // Configurar multer para armazenar em memória
 const storage = multer.memoryStorage();
 
 // Filtro para aceitar apenas imagens
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-  
+
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -39,17 +38,21 @@ const upload = multer({
 const uploadToCloudinary = (buffer, mimetype) => {
   return new Promise((resolve, reject) => {
     const base64Image = `data:${mimetype};base64,${buffer.toString('base64')}`;
-    
-    cloudinary.uploader.upload(base64Image, {
-      folder: 'oz-shop',
-      resource_type: 'auto'
-    }, (error, result) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(result);
+
+    cloudinary.uploader.upload(
+      base64Image,
+      {
+        folder: 'oz-shop',
+        resource_type: 'auto'
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
       }
-    });
+    );
   });
 };
 
@@ -57,36 +60,35 @@ const uploadToCloudinary = (buffer, mimetype) => {
 // O campo deve se chamar 'image' no form-data
 router.post('/image', (req, res) => {
   upload.single('image')(req, res, async (err) => {
+    // Verificar se o arquivo foi enviado
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nenhum arquivo foi enviado. Certifique-se de usar o campo "image".'
+      });
+    }
     // Tratamento de erros do multer
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Arquivo muito grande. O tamanho máximo é 2MB.' 
+        return res.status(400).json({
+          success: false,
+          message: 'Arquivo muito grande. O tamanho máximo é 2MB.'
         });
       }
       if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Campo inválido. Use o campo "image" para enviar o arquivo.' 
+        return res.status(400).json({
+          success: false,
+          message: 'Campo inválido. Use o campo "image" para enviar o arquivo.'
         });
       }
-      return res.status(400).json({ 
-        success: false, 
-        message: err.message 
+      return res.status(400).json({
+        success: false,
+        message: err.message
       });
     } else if (err) {
-      return res.status(400).json({ 
-        success: false, 
-        message: err.message 
-      });
-    }
-
-    // Verificar se o arquivo foi enviado
-    if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Nenhum arquivo foi enviado. Certifique-se de usar o campo "image".' 
+      return res.status(400).json({
+        success: false,
+        message: err.message
       });
     }
 
@@ -97,13 +99,11 @@ router.post('/image', (req, res) => {
       // Calcular tamanho para exibição
       const sizeInKB = req.file.size / 1024;
       const sizeInMB = sizeInKB / 1024;
-      
-      const sizeFormatted = sizeInMB >= 1 
-        ? `${sizeInMB.toFixed(2)}MB` 
-        : `${sizeInKB.toFixed(2)}KB`;
 
-      res.json({ 
-        success: true, 
+      const sizeFormatted = sizeInMB >= 1 ? `${sizeInMB.toFixed(2)}MB` : `${sizeInKB.toFixed(2)}KB`;
+
+      res.json({
+        success: true,
         message: 'Imagem enviada com sucesso!',
         data: {
           url: result.secure_url,
@@ -114,9 +114,9 @@ router.post('/image', (req, res) => {
       });
     } catch (error) {
       console.error('Erro ao enviar para Cloudinary:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao fazer upload da imagem.' 
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao fazer upload da imagem.'
       });
     }
   });
@@ -126,42 +126,42 @@ router.post('/image', (req, res) => {
 // Os campos devem se chamar 'images' no form-data
 router.post('/images', (req, res) => {
   upload.array('images', 5)(req, res, async (err) => {
-    // Tratamento de erros do multer
-    if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Um ou mais arquivos são muito grandes. O tamanho máximo é 2MB por imagem.' 
-        });
-      }
-      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Campo inválido. Use o campo "images" para enviar os arquivos.' 
-        });
-      }
-      return res.status(400).json({ 
-        success: false, 
-        message: err.message 
-      });
-    } else if (err) {
-      return res.status(400).json({ 
-        success: false, 
-        message: err.message 
+    // Verificar se arquivos foram enviados
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nenhum arquivo foi enviado. Certifique-se de usar o campo "images".'
       });
     }
 
-    // Verificar se arquivos foram enviados
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Nenhum arquivo foi enviado. Certifique-se de usar o campo "images".' 
+    // Tratamento de erros do multer
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Arquivos muito grandes. O tamanho máximo é 2MB por imagem.'
+        });
+      }
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Campo inválido. Use o campo "images" para enviar arquivos.'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    } else if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
       });
     }
 
     try {
       // Upload de todos os arquivos para Cloudinary
-      const uploadPromises = req.files.map(file => 
+      const uploadPromises = req.files.map((file) =>
         uploadToCloudinary(file.buffer, file.mimetype)
       );
 
@@ -173,9 +173,8 @@ router.post('/images', (req, res) => {
         const sizeInKB = file.size / 1024;
         const sizeInMB = sizeInKB / 1024;
 
-        const sizeFormatted = sizeInMB >= 1 
-          ? `${sizeInMB.toFixed(2)}MB` 
-          : `${sizeInKB.toFixed(2)}KB`;
+        const sizeFormatted =
+          sizeInMB >= 1 ? `${sizeInMB.toFixed(2)}MB` : `${sizeInKB.toFixed(2)}KB`;
 
         return {
           url: result.secure_url,
@@ -185,16 +184,16 @@ router.post('/images', (req, res) => {
         };
       });
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: `${imagesData.length} imagem(ns) enviada(s) com sucesso!`,
         data: imagesData
       });
     } catch (error) {
       console.error('Erro ao enviar para Cloudinary:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao fazer upload das imagens.' 
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao fazer upload das imagens.'
       });
     }
   });

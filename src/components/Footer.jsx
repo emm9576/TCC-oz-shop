@@ -1,7 +1,6 @@
-
+import { Facebook, Instagram, Mail, MapPin, Phone, Twitter } from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -25,7 +24,7 @@ const Footer = () => {
               </a>
             </div>
           </div>
-          
+
           <div>
             <h3 className="text-lg font-semibold mb-4">Links Rápidos</h3>
             <ul className="space-y-2">
@@ -51,38 +50,53 @@ const Footer = () => {
               </li>
             </ul>
           </div>
-          
+
           <div>
             <h3 className="text-lg font-semibold mb-4">Categorias</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/produtos?categoria=eletronicos" className="text-gray-400 hover:text-primary transition-colors">
+                <Link
+                  to="/produtos?categoria=Electronics"
+                  className="text-gray-400 hover:text-primary transition-colors"
+                >
                   Eletrônicos
                 </Link>
               </li>
               <li>
-                <Link to="/produtos?categoria=moda" className="text-gray-400 hover:text-primary transition-colors">
+                <Link
+                  to="/produtos?categoria=Fashion"
+                  className="text-gray-400 hover:text-primary transition-colors"
+                >
                   Moda
                 </Link>
               </li>
               <li>
-                <Link to="/produtos?categoria=casa" className="text-gray-400 hover:text-primary transition-colors">
+                <Link
+                  to="/produtos?categoria=Home"
+                  className="text-gray-400 hover:text-primary transition-colors"
+                >
                   Casa e Decoração
                 </Link>
               </li>
               <li>
-                <Link to="/produtos?categoria=esportes" className="text-gray-400 hover:text-primary transition-colors">
+                <Link
+                  to="/produtos?categoria=Sports"
+                  className="text-gray-400 hover:text-primary transition-colors"
+                >
                   Esportes
                 </Link>
               </li>
               <li>
-                <Link to="/produtos?categoria=beleza" className="text-gray-400 hover:text-primary transition-colors">
+                <Link
+                  to="/produtos?categoria=Beauty"
+                  className="text-gray-400 hover:text-primary transition-colors"
+                >
                   Beleza e Saúde
                 </Link>
               </li>
             </ul>
           </div>
-          
+
           <div>
             <h3 className="text-lg font-semibold mb-4">Contato</h3>
             <ul className="space-y-3">
@@ -101,7 +115,7 @@ const Footer = () => {
             </ul>
           </div>
         </div>
-        
+
         <div className="border-t border-gray-800 mt-10 pt-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm">
@@ -110,12 +124,18 @@ const Footer = () => {
             <div className="mt-4 md:mt-0">
               <ul className="flex space-x-6">
                 <li>
-                  <a href="#" className="text-gray-400 hover:text-primary text-sm transition-colors">
+                  <a
+                    href="#"
+                    className="text-gray-400 hover:text-primary text-sm transition-colors"
+                  >
                     Termos de Uso
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="text-gray-400 hover:text-primary text-sm transition-colors">
+                  <a
+                    href="#"
+                    className="text-gray-400 hover:text-primary text-sm transition-colors"
+                  >
                     Política de Privacidade
                   </a>
                 </li>

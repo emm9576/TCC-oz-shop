@@ -1,28 +1,29 @@
 // src/pages/SellPage.jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { motion } from 'framer-motion';
-import { 
-  Upload, 
-  Image as ImageIcon, 
-  X, 
-  Plus, 
+import {
   DollarSign,
-  Package,
-  Truck,
-  Tag,
   FileText,
-  Loader2
+  Image as ImageIcon,
+  Loader2,
+  Package,
+  Plus,
+  Tag,
+  Truck,
+  Upload,
+  X
 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProducts } from '@/contexts/ProductsContext';
-import { useToast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 
 const SellPage = () => {
@@ -36,7 +37,7 @@ const SellPage = () => {
     imageMain: '',
     images: [],
     features: [],
-    freteGratis: false,
+    freteGratis: false
   });
   const [currentFeature, setCurrentFeature] = useState('');
   const [currentImage, setCurrentImage] = useState('');
@@ -45,6 +46,8 @@ const SellPage = () => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const fileInputRef = useRef(null);
 
   const { user, isAuthenticated } = useAuth();
   const { createProduct } = useProducts();
@@ -59,11 +62,11 @@ const SellPage = () => {
     { value: 'Sports', label: 'Esportes' },
     { value: 'Beauty', label: 'Beleza e Saúde' },
     { value: 'Books', label: 'Livros' },
-    { value: 'Automotive', label: 'Automotivo' },
+    { value: 'Automotive', label: 'Automotivo' }
   ];
 
   // Verificar autenticação
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: { pathname: '/vender' } } });
     }
@@ -71,15 +74,15 @@ const SellPage = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
 
     // Limpar erro do campo
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
         [name]: ''
       }));
@@ -88,7 +91,7 @@ const SellPage = () => {
 
   const handleAddFeature = () => {
     if (currentFeature.trim() && !formData.features.includes(currentFeature.trim())) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         features: [...prev.features, currentFeature.trim()]
       }));
@@ -97,15 +100,15 @@ const SellPage = () => {
   };
 
   const handleRemoveFeature = (feature) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      features: prev.features.filter(f => f !== feature)
+      features: prev.features.filter((f) => f !== feature)
     }));
   };
 
   const handleAddImage = () => {
     if (currentImage.trim() && !formData.images.includes(currentImage.trim())) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         images: [...prev.images, currentImage.trim()]
       }));
@@ -114,9 +117,9 @@ const SellPage = () => {
   };
 
   const handleRemoveImage = (image) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      images: prev.images.filter(img => img !== image)
+      images: prev.images.filter((img) => img !== image)
     }));
   };
 
@@ -135,7 +138,7 @@ const SellPage = () => {
       toast({
         title: 'Erro',
         description: 'Por favor, selecione apenas arquivos de imagem',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
@@ -145,14 +148,15 @@ const SellPage = () => {
       toast({
         title: 'Erro',
         description: 'A imagem deve ter no máximo 2MB',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
 
     setImageFile(file);
+    setFormData((prev) => ({ ...prev, imageMain: '' })); // evitar conflito com URL manual
 
-    // Criar preview
+    // Criar preview local imediato
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
@@ -161,14 +165,14 @@ const SellPage = () => {
 
     // Limpar erro do campo
     if (errors.imageMain) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
         imageMain: ''
       }));
     }
   };
 
-  // Função para lidar com drag and drop
+  // Drag and drop
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -184,47 +188,45 @@ const SellPage = () => {
     }
   };
 
-  // Função para remover imagem selecionada
+  // Remover imagem selecionada
   const handleRemoveSelectedImage = () => {
     setImageFile(null);
     setImagePreview(null);
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       imageMain: ''
     }));
   };
 
-  // Função para fazer upload da imagem
-  const handleUploadImage = async () => {
-    if (!imageFile) {
-      return null;
-    }
+  // Upload de imagem (puro: recebe arquivo, retorna string ou null)
+  const handleUploadImage = async (file) => {
+    if (!file) return null;
 
     setIsUploading(true);
-
     try {
-      const response = await apiService.uploadImage(imageFile);
-      
-      if (response.success && response.data?.base64) {
-        setFormData(prev => ({
-          ...prev,
-          imageMain: response.data.base64
-        }));
+      const response = await apiService.uploadImage(file);
 
-        toast({
-          title: 'Sucesso',
-          description: 'Imagem enviada com sucesso',
-        });
+      // Preferir URL pública; fallback para base64
+      const uploaded =
+        response && response.success && response.data && (response.data.url || response.data.base64)
+          ? response.data.url || response.data.base64
+          : null;
 
-        return response.data.base64;
+      if (uploaded) {
+        setFormData((prev) => ({ ...prev, imageMain: uploaded }));
+        setImagePreview(uploaded); // manter preview igual ao que será salvo
+        toast({ title: 'Sucesso', description: 'Imagem enviada com sucesso' });
+        return uploaded;
       }
+
+      const msg =
+        (response && (response.message || response.data?.error)) || 'Falha no upload da imagem.';
+      toast({ title: 'Erro', description: msg, variant: 'destructive' });
+      return null;
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      toast({
-        title: 'Erro',
-        description: error.message || 'Erro ao fazer upload da imagem. Tente novamente.',
-        variant: 'destructive',
-      });
+      const msg = (error && error.message) || 'Erro ao fazer upload da imagem. Tente novamente.';
+      toast({ title: 'Erro', description: msg, variant: 'destructive' });
       return null;
     } finally {
       setIsUploading(false);
@@ -260,7 +262,10 @@ const SellPage = () => {
     }
 
     // Validar desconto
-    if (formData.discount && (parseFloat(formData.discount) < 0 || parseFloat(formData.discount) > 100)) {
+    if (
+      formData.discount &&
+      (parseFloat(formData.discount) < 0 || parseFloat(formData.discount) > 100)
+    ) {
       newErrors.discount = 'Desconto deve estar entre 0 e 100%';
     }
 
@@ -279,24 +284,27 @@ const SellPage = () => {
 
     try {
       // Se há um arquivo selecionado, fazer upload primeiro
-      let imageUrl = formData.imageMain;
-      if (imageFile && !formData.imageMain) {
-        imageUrl = await handleUploadImage();
+      let imageUrl = formData.imageMain || null;
+      if (imageFile && !imageUrl) {
+        imageUrl = await handleUploadImage(imageFile);
         if (!imageUrl) {
           setIsSubmitting(false);
-          return;
+          return; // parar fluxo em caso de falha
         }
       }
+
+      console.log('Imagem principal (string):', imageUrl);
+      console.log('Imagem arquivo (File):', imageFile);
 
       const productData = {
         ...formData,
         imageMain: imageUrl,
-        price: parseFloat(formData.price),
-        discount: formData.discount ? parseFloat(formData.discount) : 0,
-        stock: parseInt(formData.stock),
+        price: Number(formData.price),
+        discount: formData.discount ? Number(formData.discount) : 0,
+        stock: Number(formData.stock),
         seller: user?.name || 'Vendedor',
         rating: 0,
-        reviews: 0,
+        reviews: 0
       };
 
       const result = await createProduct(productData);
@@ -324,9 +332,7 @@ const SellPage = () => {
           transition={{ duration: 0.3 }}
         >
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Vender Produto
-            </h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Vender Produto</h1>
             <p className="text-gray-600">
               Preencha as informações do seu produto para começar a vender
             </p>
@@ -353,9 +359,7 @@ const SellPage = () => {
                       onChange={handleChange}
                       className={errors.name ? 'border-red-500' : ''}
                     />
-                    {errors.name && (
-                      <p className="text-sm text-red-500">{errors.name}</p>
-                    )}
+                    {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -367,16 +371,16 @@ const SellPage = () => {
                       onChange={handleChange}
                       className={`w-full p-2 border rounded-md ${errors.category ? 'border-red-500' : 'border-gray-300'}`}
                     >
-                      <option value="">Selecione uma categoria</option>
-                      {categories.map(category => (
+                      <option value="" disabled>
+                        Selecione uma categoria
+                      </option>
+                      {categories.map((category) => (
                         <option key={category.value} value={category.value}>
                           {category.label}
                         </option>
                       ))}
                     </select>
-                    {errors.category && (
-                      <p className="text-sm text-red-500">{errors.category}</p>
-                    )}
+                    {errors.category && <p className="text-sm text-red-500">{errors.category}</p>}
                   </div>
                 </div>
 
@@ -421,9 +425,7 @@ const SellPage = () => {
                       onChange={handleChange}
                       className={errors.price ? 'border-red-500' : ''}
                     />
-                    {errors.price && (
-                      <p className="text-sm text-red-500">{errors.price}</p>
-                    )}
+                    {errors.price && <p className="text-sm text-red-500">{errors.price}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -439,9 +441,7 @@ const SellPage = () => {
                       onChange={handleChange}
                       className={errors.discount ? 'border-red-500' : ''}
                     />
-                    {errors.discount && (
-                      <p className="text-sm text-red-500">{errors.discount}</p>
-                    )}
+                    {errors.discount && <p className="text-sm text-red-500">{errors.discount}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -456,9 +456,7 @@ const SellPage = () => {
                       onChange={handleChange}
                       className={errors.stock ? 'border-red-500' : ''}
                     />
-                    {errors.stock && (
-                      <p className="text-sm text-red-500">{errors.stock}</p>
-                    )}
+                    {errors.stock && <p className="text-sm text-red-500">{errors.stock}</p>}
                   </div>
                 </div>
 
@@ -491,19 +489,20 @@ const SellPage = () => {
                 {/* Upload de Imagem Principal */}
                 <div className="space-y-2">
                   <Label>Imagem Principal *</Label>
-                  
+
                   {!imagePreview ? (
                     <div
                       onDragOver={handleDragOver}
                       onDrop={handleDrop}
                       className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                        errors.imageMain 
-                          ? 'border-red-500 bg-red-50' 
+                        errors.imageMain
+                          ? 'border-red-500 bg-red-50'
                           : 'border-gray-300 hover:border-gray-400 bg-gray-50'
                       }`}
-                      onClick={() => document.getElementById('imageUpload').click()}
+                      onClick={() => fileInputRef.current?.click()}
                     >
                       <input
+                        ref={fileInputRef}
                         id="imageUpload"
                         type="file"
                         accept="image/*"
@@ -514,9 +513,7 @@ const SellPage = () => {
                       <p className="text-gray-600 mb-2">
                         Arraste uma imagem ou clique para selecionar
                       </p>
-                      <p className="text-sm text-gray-500">
-                        PNG, JPG, GIF, WEBP até 2MB
-                      </p>
+                      <p className="text-sm text-gray-500">PNG, JPG, GIF, WEBP até 2MB</p>
                     </div>
                   ) : (
                     <div className="relative border-2 border-gray-300 rounded-lg p-4">
@@ -541,10 +538,8 @@ const SellPage = () => {
                       )}
                     </div>
                   )}
-                  
-                  {errors.imageMain && (
-                    <p className="text-sm text-red-500">{errors.imageMain}</p>
-                  )}
+
+                  {errors.imageMain && <p className="text-sm text-red-500">{errors.imageMain}</p>}
                 </div>
 
                 {/* URL da Imagem Principal (opcional) */}
@@ -575,7 +570,7 @@ const SellPage = () => {
                       placeholder="URL da imagem adicional"
                       value={currentImage}
                       onChange={(e) => setCurrentImage(e.target.value)}
-                      onKeyPress={(e) => {
+                      onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
                           handleAddImage();
@@ -586,7 +581,7 @@ const SellPage = () => {
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   {formData.images.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {formData.images.map((image, index) => (
@@ -621,7 +616,7 @@ const SellPage = () => {
                     placeholder="Ex: Tela OLED, 128GB, 5G..."
                     value={currentFeature}
                     onChange={(e) => setCurrentFeature(e.target.value)}
-                    onKeyPress={(e) => {
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
                         handleAddFeature();
@@ -632,7 +627,7 @@ const SellPage = () => {
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-                
+
                 {formData.features.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {formData.features.map((feature, index) => (

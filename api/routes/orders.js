@@ -1,7 +1,7 @@
 import express from 'express';
-import User from '../../models/user.js';
 import Order from '../../models/order.js';
-import { requireAdmin, requireOwnerOrAdmin, requireLogin } from '../middlewares/auth.js';
+import User from '../../models/user.js';
+import { requireAdmin, requireLogin, requireOwnerOrAdmin } from '../middlewares/auth.js';
 
 const router = express.Router();
 
@@ -9,8 +9,8 @@ const router = express.Router();
 router.get('/', requireAdmin, async (req, res) => {
   try {
     const { status, userId, page = 1, limit = 10 } = req.query;
-    
-    let filter = {};
+
+    const filter = {};
     if (status) filter.status = status;
     if (userId) filter.user = userId;
 
@@ -26,8 +26,8 @@ router.get('/', requireAdmin, async (req, res) => {
 
     const total = await Order.countDocuments(filter);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: orders,
       pagination: {
         page: Number(page),
@@ -37,7 +37,9 @@ router.get('/', requireAdmin, async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao buscar pedidos', error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: 'Erro ao buscar pedidos', error: error.message });
   }
 });
 
@@ -56,10 +58,12 @@ router.get('/my-orders', requireLogin, async (req, res) => {
         model: 'Produto'
       })
       .sort({ createdAt: -1 });
-    
+
     res.json({ success: true, data: orders });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao buscar seus pedidos', error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: 'Erro ao buscar seus pedidos', error: error.message });
   }
 });
 
@@ -72,22 +76,24 @@ router.get('/:id', async (req, res) => {
         path: 'products',
         model: 'Produto'
       });
-    
+
     if (!order) {
       return res.status(404).json({ success: false, message: 'Pedido não encontrado' });
     }
 
     // Verificar se é admin ou dono do pedido
     if (req.user.role !== 'admin' && order.user.id !== req.user.id) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Acesso negado: você só pode ver seus próprios pedidos' 
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado: você só pode ver seus próprios pedidos'
       });
     }
-    
+
     res.json({ success: true, data: order });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao buscar pedido', error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: 'Erro ao buscar pedido', error: error.message });
   }
 });
 
@@ -107,10 +113,12 @@ router.get('/user/:userId', requireOwnerOrAdmin('userId'), async (req, res) => {
         model: 'Produto'
       })
       .sort({ createdAt: -1 });
-    
+
     res.json({ success: true, data: orders });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao buscar pedidos do usuário', error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: 'Erro ao buscar pedidos do usuário', error: error.message });
   }
 });
 
@@ -124,19 +132,25 @@ router.put('/:id', requireAdmin, async (req, res) => {
       { status },
       { new: true, runValidators: true }
     )
-    .populate('user', '-password')
-    .populate({
-      path: 'products',
-      model: 'Produto'
-    });
+      .populate('user', '-password')
+      .populate({
+        path: 'products',
+        model: 'Produto'
+      });
 
     if (!updatedOrder) {
       return res.status(404).json({ success: false, message: 'Pedido não encontrado' });
     }
 
-    res.json({ success: true, message: 'Status do pedido atualizado com sucesso!', data: updatedOrder });
+    res.json({
+      success: true,
+      message: 'Status do pedido atualizado com sucesso!',
+      data: updatedOrder
+    });
   } catch (error) {
-    res.status(400).json({ success: false, message: 'Erro ao atualizar pedido', error: error.message });
+    res
+      .status(400)
+      .json({ success: false, message: 'Erro ao atualizar pedido', error: error.message });
   }
 });
 
@@ -150,19 +164,27 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
       { status },
       { new: true, runValidators: true }
     )
-    .populate('user', '-password')
-    .populate({
-      path: 'products',
-      model: 'Produto'
-    });
+      .populate('user', '-password')
+      .populate({
+        path: 'products',
+        model: 'Produto'
+      });
 
     if (!updatedOrder) {
       return res.status(404).json({ success: false, message: 'Pedido não encontrado' });
     }
 
-    res.json({ success: true, message: 'Status do pedido atualizado com sucesso!', data: updatedOrder });
+    res.json({
+      success: true,
+      message: 'Status do pedido atualizado com sucesso!',
+      data: updatedOrder
+    });
   } catch (error) {
-    res.status(400).json({ success: false, message: 'Erro ao atualizar status do pedido', error: error.message });
+    res.status(400).json({
+      success: false,
+      message: 'Erro ao atualizar status do pedido',
+      error: error.message
+    });
   }
 });
 
@@ -172,20 +194,18 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     const updates = {
       $set: { deleted: true },
       $unset: {
-        user: "",
-        products: "",
-        date: "",
-        total: "",
-        status: "",
-        items: ""
+        user: '',
+        products: '',
+        date: '',
+        total: '',
+        status: '',
+        items: ''
       }
     };
 
-    const deletedOrder = await Order.findOneAndUpdate(
-      { id: req.params.id },
-      updates,
-      { new: true }
-    );
+    const deletedOrder = await Order.findOneAndUpdate({ id: req.params.id }, updates, {
+      new: true
+    });
 
     if (!deletedOrder) {
       return res.status(404).json({ success: false, message: 'Pedido não encontrado' });
@@ -193,7 +213,9 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 
     res.json({ success: true, data: deletedOrder });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao deletar pedido', error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: 'Erro ao deletar pedido', error: error.message });
   }
 });
 
@@ -206,10 +228,12 @@ router.get('/status/:status', requireAdmin, async (req, res) => {
         path: 'products',
         model: 'Produto'
       })
-      .sort({ createdAt: -1 });    
+      .sort({ createdAt: -1 });
     res.json({ success: true, data: orders });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao buscar pedidos por status', error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: 'Erro ao buscar pedidos por status', error: error.message });
   }
 });
 

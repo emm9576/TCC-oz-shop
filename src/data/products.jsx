@@ -13,7 +13,7 @@ export const products = [
       "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cGhvbmV8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60",
       "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8cGhvbmV8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60"
     ],
-    category: "eletronicos",
+    category: "Electronics",
     rating: 4.8,
     reviews: 324,
     stock: 15,
@@ -39,7 +39,7 @@ export const products = [
       "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8bGFwdG9wfGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60",
       "https://images.unsplash.com/photo-1602080858428-57174f9431cf?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fGxhcHRvcHxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60"
     ],
-    category: "eletronicos",
+    category: "Electronics",
     rating: 4.7,
     reviews: 189,
     stock: 8,
@@ -65,7 +65,7 @@ export const products = [
       "https://images.unsplash.com/photo-1549298916-b41d501d3772?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8c2hvZXN8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60",
       "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8c2hvZXN8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60"
     ],
-    category: "moda",
+    category: "Fashion",
     rating: 4.5,
     reviews: 256,
     stock: 25,
@@ -91,7 +91,7 @@ export const products = [
       "https://images.unsplash.com/photo-1601944177325-f8867652837f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8dHZ8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60",
       "https://images.unsplash.com/photo-1577979749830-f1d742b96791?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fHR2fGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60"
     ],
-    category: "eletronicos",
+    category: "Electronics",
     rating: 4.9,
     reviews: 178,
     stock: 10,
@@ -117,7 +117,7 @@ export const products = [
       "https://images.unsplash.com/photo-1572119865084-43c285814d63?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Y29mZmVlJTIwbWFjaGluZXxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60",
       "https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fGNvZmZlZSUyMG1hY2hpbmV8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60"
     ],
-    category: "casa",
+    category: "House",
     rating: 4.6,
     reviews: 312,
     stock: 30,
@@ -143,7 +143,7 @@ export const products = [
       "https://images.unsplash.com/photo-1583394838336-acd977736f90?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fGhlYWRwaG9uZXN8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60",
       "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8aGVhZHBob25lc3xlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60"
     ],
-    category: "eletronicos",
+    category: "Electronics",
     rating: 4.9,
     reviews: 427,
     stock: 12,
@@ -169,7 +169,7 @@ export const products = [
       "https://images.unsplash.com/photo-1551816230-ef5deaed4a26?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8YXBwbGUlMjB3YXRjaHxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60",
       "https://images.unsplash.com/photo-1546868871-7041f2a55e12?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fGFwcGxlJTIwd2F0Y2h8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60"
     ],
-    category: "eletronicos",
+    category: "Electronics",
     rating: 4.7,
     reviews: 215,
     stock: 18,
@@ -195,7 +195,7 @@ export const products = [
       "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8Z2FtaW5nJTIwY2hhaXJ8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60",
       "https://images.unsplash.com/photo-1603725507925-4b391cfa9d2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8Z2FtaW5nJTIwY2hhaXJ8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60"
     ],
-    category: "casa",
+    category: "House",
     rating: 4.5,
     reviews: 178,
     stock: 15,
@@ -234,27 +234,27 @@ export const searchProducts = (query) => {
 // Categorias disponíveis
 export const categories = [
   {
-    id: "eletronicos",
+    id: "Electronics",
     name: "Eletrônicos",
     icon: "Smartphone"
   },
   {
-    id: "moda",
+    id: "Fashion",
     name: "Moda",
     icon: "Shirt"
   },
   {
-    id: "casa",
+    id: "House",
     name: "Casa e Decoração",
     icon: "Home"
   },
   {
-    id: "esportes",
+    id: "Sports",
     name: "Esportes",
     icon: "Dumbbell"
   },
   {
-    id: "beleza",
+    id: "Beauty",
     name: "Beleza e Saúde",
     icon: "Sparkles"
   }

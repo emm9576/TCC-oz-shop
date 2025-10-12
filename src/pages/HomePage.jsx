@@ -1,19 +1,29 @@
-
+import { motion } from 'framer-motion';
+import {
+  ArrowRight,
+  Award,
+  CreditCard,
+  Dumbbell,
+  Home,
+  Shirt,
+  ShoppingBag,
+  Smartphone,
+  Sparkles,
+  Truck
+} from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowRight, ShoppingBag, Truck, CreditCard, Award, Smartphone, Shirt, Home, Dumbbell, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import ProductCard from '@/components/ProductCard';
-import { products, categories } from '@/data/products';
+import { Button } from '@/components/ui/button';
+import { categories, products } from '@/data/products';
 
 const HomePage = () => {
   // Pegar apenas os primeiros 4 produtos para exibir na seção de destaque
   const featuredProducts = products.slice(0, 4);
-  
+
   // Pegar produtos com desconto para a seção de ofertas
   const discountedProducts = products
-    .filter(product => product.discount > 0)
+    .filter((product) => product.discount > 0)
     .sort((a, b) => b.discount - a.discount)
     .slice(0, 4);
 
@@ -40,7 +50,7 @@ const HomePage = () => {
       Dumbbell: <Dumbbell className="h-6 w-6" />,
       Sparkles: <Sparkles className="h-6 w-6" />
     };
-    
+
     return icons[iconName] || <ShoppingBag className="h-6 w-6" />;
   };
 
@@ -50,7 +60,7 @@ const HomePage = () => {
       <section className="hero-gradient py-16 md:py-24">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center">
-            <motion.div 
+            <motion.div
               className="md:w-1/2 mb-10 md:mb-0"
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
@@ -60,7 +70,8 @@ const HomePage = () => {
                 Compre e venda no <span className="text-primary">Oz Shop</span>
               </h1>
               <p className="text-lg md:text-xl text-gray-600 mb-8">
-                Seu marketplace completo para encontrar produtos incríveis ou vender o que você não usa mais.
+                Seu marketplace completo para encontrar produtos incríveis ou vender o que você não
+                usa mais.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
@@ -69,7 +80,11 @@ const HomePage = () => {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-primary text-primary hover:bg-primary hover:text-white"
+                >
                   <Link to="/vender" className="flex items-center">
                     Comece a Vender
                     <ShoppingBag className="ml-2 h-5 w-5" />
@@ -77,15 +92,19 @@ const HomePage = () => {
                 </Button>
               </div>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="md:w-1/2"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               <div className="relative">
-                <img  className="rounded-lg shadow-2xl" alt="Pessoas comprando online" src="https://images.unsplash.com/photo-1542744095-291d1f67b221" />
+                <img
+                  className="rounded-lg shadow-2xl"
+                  alt="Pessoas comprando online"
+                  src="https://images.unsplash.com/photo-1542744095-291d1f67b221"
+                />
                 <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-lg shadow-lg">
                   <div className="flex items-center">
                     <div className="bg-green-100 p-2 rounded-full mr-3">
@@ -106,7 +125,7 @@ const HomePage = () => {
       {/* Categorias */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <motion.div 
+          <motion.div
             className="text-center mb-12"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -115,20 +134,16 @@ const HomePage = () => {
             <h2 className="text-3xl font-bold mb-2">Navegue por Categorias</h2>
             <p className="text-gray-600">Encontre exatamente o que você está procurando</p>
           </motion.div>
-          
-          <motion.div 
+
+          <motion.div
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
             variants={staggerContainer}
             initial="initial"
             animate="animate"
           >
             {categories.map((category) => (
-              <motion.div 
-                key={category.id}
-                variants={fadeInUp}
-                className="category-item"
-              >
-                <Link 
+              <motion.div key={category.id} variants={fadeInUp} className="category-item">
+                <Link
                   to={`/produtos?categoria=${category.id}`}
                   className="flex flex-col items-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
                 >
@@ -153,7 +168,7 @@ const HomePage = () => {
               <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
@@ -166,7 +181,7 @@ const HomePage = () => {
       <section className="py-16 bg-gradient-to-r from-primary/20 to-primary/5">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center">
-            <motion.div 
+            <motion.div
               className="md:w-1/2 mb-8 md:mb-0"
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -175,7 +190,8 @@ const HomePage = () => {
             >
               <h2 className="text-3xl md:text-4xl font-bold mb-4">Tem algo para vender?</h2>
               <p className="text-lg text-gray-600 mb-6">
-                Transforme itens não utilizados em dinheiro. Venda facilmente no Oz Shop e alcance milhares de compradores.
+                Transforme itens não utilizados em dinheiro. Venda facilmente no Oz Shop e alcance
+                milhares de compradores.
               </p>
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
                 <Link to="/vender" className="flex items-center">
@@ -184,15 +200,19 @@ const HomePage = () => {
                 </Link>
               </Button>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="md:w-1/2"
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
               viewport={{ once: true }}
             >
-              <img  className="rounded-lg shadow-xl" alt="Pessoa vendendo produtos online" src="https://images.unsplash.com/photo-1632065509860-4fbcfc89ed7c" />
+              <img
+                className="rounded-lg shadow-xl"
+                alt="Pessoa vendendo produtos online"
+                src="https://images.unsplash.com/photo-1632065509860-4fbcfc89ed7c"
+              />
             </motion.div>
           </div>
         </div>
@@ -208,7 +228,7 @@ const HomePage = () => {
               <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {discountedProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
@@ -220,7 +240,7 @@ const HomePage = () => {
       {/* Vantagens */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <motion.div 
+          <motion.div
             className="text-center mb-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -228,11 +248,13 @@ const HomePage = () => {
             viewport={{ once: true }}
           >
             <h2 className="text-3xl font-bold mb-2">Por que escolher o Oz Shop?</h2>
-            <p className="text-gray-600">Oferecemos a melhor experiência para compradores e vendedores</p>
+            <p className="text-gray-600">
+              Oferecemos a melhor experiência para compradores e vendedores
+            </p>
           </motion.div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <motion.div 
+            <motion.div
               className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -243,10 +265,12 @@ const HomePage = () => {
                 <Truck className="h-7 w-7 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Entrega Rápida</h3>
-              <p className="text-gray-600">Receba seus produtos em até 2 dias úteis em diversas regiões do Brasil.</p>
+              <p className="text-gray-600">
+                Receba seus produtos em até 2 dias úteis em diversas regiões do Brasil.
+              </p>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -257,10 +281,12 @@ const HomePage = () => {
                 <CreditCard className="h-7 w-7 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Pagamento Seguro</h3>
-              <p className="text-gray-600">Diversas opções de pagamento com total segurança para suas transações.</p>
+              <p className="text-gray-600">
+                Diversas opções de pagamento com total segurança para suas transações.
+              </p>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -271,10 +297,12 @@ const HomePage = () => {
                 <Award className="h-7 w-7 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Produtos de Qualidade</h3>
-              <p className="text-gray-600">Todos os produtos passam por verificação de qualidade antes da venda.</p>
+              <p className="text-gray-600">
+                Todos os produtos passam por verificação de qualidade antes da venda.
+              </p>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -285,7 +313,9 @@ const HomePage = () => {
                 <ShoppingBag className="h-7 w-7 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Venda Facilitada</h3>
-              <p className="text-gray-600">Processo simples para cadastrar e vender seus produtos na plataforma.</p>
+              <p className="text-gray-600">
+                Processo simples para cadastrar e vender seus produtos na plataforma.
+              </p>
             </motion.div>
           </div>
         </div>
@@ -299,10 +329,18 @@ const HomePage = () => {
             Junte-se a milhares de pessoas que já estão comprando e vendendo no Oz Shop.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-gray-100">
+            <Button
+              size="lg"
+              variant="secondary"
+              className="bg-white text-primary hover:bg-gray-100"
+            >
               <Link to="/produtos">Explorar Produtos</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary">
+            <Button
+              size="lg"
+              variant="secondary"
+              className="bg-white text-primary hover:bg-gray-100"
+            >
               <Link to="/cadastro">Criar uma Conta</Link>
             </Button>
           </div>

@@ -1,12 +1,13 @@
 // src/pages/ProductsPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+
 import { motion } from 'framer-motion';
-import { Search, Filter, Grid, List, ChevronDown, Loader2 } from 'lucide-react';
+import { ChevronDown, Filter, Grid, List, Loader2, Search } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import ProductCard from '@/components/ProductCard';
 import { useProducts } from '@/contexts/ProductsContext';
 
 const ProductsPage = () => {
@@ -18,17 +19,11 @@ const ProductsPage = () => {
     category: searchParams.get('category') || '',
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
-    seller: searchParams.get('seller') || '',
+    seller: searchParams.get('seller') || ''
   });
 
-  const { 
-    products, 
-    loading, 
-    pagination, 
-    fetchProducts,
-    fetchProductsByCategory,
-    clearFilters 
-  } = useProducts();
+  const { products, loading, pagination, fetchProducts, fetchProductsByCategory, clearFilters } =
+    useProducts();
 
   // Categorias disponíveis
   const categories = [
@@ -39,7 +34,7 @@ const ProductsPage = () => {
     { value: 'Sports', label: 'Esportes' },
     { value: 'Beauty', label: 'Beleza e Saúde' },
     { value: 'Books', label: 'Livros' },
-    { value: 'Automotive', label: 'Automotivo' },
+    { value: 'Automotive', label: 'Automotivo' }
   ];
 
   // Opções de ordenação
@@ -49,7 +44,7 @@ const ProductsPage = () => {
     { value: 'price', label: 'Menor Preço' },
     { value: '-price', label: 'Maior Preço' },
     { value: '-rating', label: 'Melhor Avaliação' },
-    { value: '-reviews', label: 'Mais Avaliações' },
+    { value: '-reviews', label: 'Mais Avaliações' }
   ];
 
   // Buscar produtos quando filtros mudarem
@@ -60,11 +55,11 @@ const ProductsPage = () => {
       category: localFilters.category || undefined,
       minPrice: localFilters.minPrice ? parseFloat(localFilters.minPrice) : undefined,
       maxPrice: localFilters.maxPrice ? parseFloat(localFilters.maxPrice) : undefined,
-      seller: localFilters.seller || undefined,
+      seller: localFilters.seller || undefined
     };
 
     // Remover parâmetros vazios
-    Object.keys(params).forEach(key => {
+    Object.keys(params).forEach((key) => {
       if (params[key] === undefined || params[key] === '') {
         delete params[key];
       }
@@ -74,7 +69,7 @@ const ProductsPage = () => {
 
     // Atualizar URL com os parâmetros de busca (sem page e limit)
     const urlParams = new URLSearchParams();
-    Object.keys(params).forEach(key => {
+    Object.keys(params).forEach((key) => {
       if (params[key] !== undefined) {
         urlParams.set(key, params[key].toString());
       }
@@ -88,9 +83,9 @@ const ProductsPage = () => {
   }, [searchProducts]);
 
   const handleFilterChange = (key, value) => {
-    setLocalFilters(prev => ({
+    setLocalFilters((prev) => ({
       ...prev,
-      [key]: value,
+      [key]: value
     }));
   };
 
@@ -105,7 +100,7 @@ const ProductsPage = () => {
       category: '',
       minPrice: '',
       maxPrice: '',
-      seller: '',
+      seller: ''
     });
     clearFilters();
     setSearchParams({});
@@ -116,24 +111,22 @@ const ProductsPage = () => {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
-      },
-    },
+        staggerChildren: 0.1
+      }
+    }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
+    visible: { opacity: 1, y: 0 }
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Cabeçalho */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">
-          Produtos
-        </h1>
-        
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">Produtos</h1>
+
         {/* Barra de busca */}
         <form onSubmit={handleSearch} className="flex gap-4 mb-4">
           <div className="flex-1 relative">
@@ -160,18 +153,15 @@ const ProductsPage = () => {
         {/* Controles de exibição */}
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="h-4 w-4 mr-2" />
               Filtros
             </Button>
-            
+
             {products.length > 0 && (
               <p className="text-sm text-gray-600">
-                {products.length} produto{products.length !== 1 ? 's' : ''} encontrado{products.length !== 1 ? 's' : ''}
+                {products.length} produto{products.length !== 1 ? 's' : ''} encontrado
+                {products.length !== 1 ? 's' : ''}
               </p>
             )}
           </div>
@@ -200,7 +190,7 @@ const ProductsPage = () => {
         <div className={`lg:w-64 space-y-6 ${showFilters ? 'block' : 'hidden lg:block'}`}>
           <div className="bg-white p-6 rounded-lg shadow-sm border">
             <h3 className="font-semibold mb-4">Filtros</h3>
-            
+
             {/* Categoria */}
             <div className="mb-6">
               <Label className="text-sm font-medium mb-2 block">Categoria</Label>
@@ -209,7 +199,7 @@ const ProductsPage = () => {
                 value={localFilters.category}
                 onChange={(e) => handleFilterChange('category', e.target.value)}
               >
-                {categories.map(category => (
+                {categories.map((category) => (
                   <option key={category.value} value={category.value}>
                     {category.label}
                   </option>
@@ -256,9 +246,9 @@ const ProductsPage = () => {
               <Button onClick={searchProducts} className="w-full" disabled={loading}>
                 {loading ? 'Aplicando...' : 'Aplicar Filtros'}
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleClearFilters} 
+              <Button
+                variant="outline"
+                onClick={handleClearFilters}
                 className="w-full"
                 disabled={loading}
               >
@@ -279,12 +269,8 @@ const ProductsPage = () => {
             </div>
           ) : products.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500 text-lg mb-4">
-                Nenhum produto encontrado
-              </p>
-              <Button onClick={handleClearFilters}>
-                Limpar Filtros
-              </Button>
+              <p className="text-gray-500 text-lg mb-4">Nenhum produto encontrado</p>
+              <Button onClick={handleClearFilters}>Limpar Filtros</Button>
             </div>
           ) : (
             <motion.div
@@ -297,11 +283,13 @@ const ProductsPage = () => {
               initial="hidden"
               animate="visible"
             >
-              {products.filter(product => product.imageMain || product.image).map((product) => (
-                <motion.div key={product.id} variants={itemVariants}>
-                  <ProductCard product={product} viewMode={viewMode} />
-                </motion.div>
-              ))}
+              {products
+                .filter((product) => product.imageMain || product.image)
+                .map((product) => (
+                  <motion.div key={product.id} variants={itemVariants}>
+                    <ProductCard product={product} viewMode={viewMode} />
+                  </motion.div>
+                ))}
             </motion.div>
           )}
         </div>

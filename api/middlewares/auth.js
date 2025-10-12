@@ -1,8 +1,9 @@
+import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../../models/user.js';
 
-import dotenv from 'dotenv';
 dotenv.config();
 
 // Chave secreta para assinar JWT
@@ -11,30 +12,30 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // Middleware para verificar se usuário está logado
 const requireLogin = async (req, res, next) => {
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Token de acesso requerido' 
+      return res.status(401).json({
+        success: false,
+        message: 'Token de acesso requerido'
       });
     }
 
     // Tentar verificar o token atual
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      
+
       // Buscar usuário no banco
-      const user = await User.findOne({ 
-        id: decoded.userId, 
-        deleted: { $ne: true } 
+      const user = await User.findOne({
+        id: decoded.userId,
+        deleted: { $ne: true }
       }).select('-password');
 
       if (!user) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Usuário não encontrado ou desativado' 
+        return res.status(401).json({
+          success: false,
+          message: 'Usuário não encontrado ou desativado'
         });
       }
 
@@ -48,32 +49,30 @@ const requireLogin = async (req, res, next) => {
       };
 
       return next();
-
     } catch (tokenError) {
       // Token expirado ou inválido - tentar renovar
       if (tokenError.name === 'TokenExpiredError' || tokenError.name === 'JsonWebTokenError') {
-        
         // Decodificar token sem verificar (para pegar userId)
         const decodedToken = jwt.decode(token);
-        
+
         if (!decodedToken || !decodedToken.userId) {
-          return res.status(401).json({ 
-            success: false, 
-            message: 'Token inválido' 
+          return res.status(401).json({
+            success: false,
+            message: 'Token inválido'
           });
         }
 
         // Buscar usuário e verificar refresh token
-        const user = await User.findOne({ 
-          id: decodedToken.userId, 
+        const user = await User.findOne({
+          id: decodedToken.userId,
           deleted: { $ne: true },
           refreshToken: { $ne: null }
         }).select('-password');
 
         if (!user || !user.refreshToken) {
-          return res.status(401).json({ 
-            success: false, 
-            message: 'Sessão expirada. Faça login novamente' 
+          return res.status(401).json({
+            success: false,
+            message: 'Sessão expirada. Faça login novamente'
           });
         }
 
@@ -94,17 +93,15 @@ const requireLogin = async (req, res, next) => {
 
         console.log(`🔄 Token renovado automaticamente para usuário ${user.id}`);
         return next();
-
       } else {
         throw tokenError; // Re-throw se for outro tipo de erro
       }
     }
-
   } catch (error) {
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Erro interno do servidor', 
-      error: error.message 
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
     });
   }
 };
@@ -114,9 +111,9 @@ const requireAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();
   } else {
-    return res.status(403).json({ 
-      success: false, 
-      message: 'Acesso negado: privilégios de administrador requeridos' 
+    return res.status(403).json({
+      success: false,
+      message: 'Acesso negado: privilégios de administrador requeridos'
     });
   }
 };
@@ -125,13 +122,13 @@ const requireAdmin = (req, res, next) => {
 const requireOwnerOrAdmin = (userIdParam = 'userId') => {
   return (req, res, next) => {
     const resourceUserId = req.params[userIdParam];
-    
+
     if (req.user && (req.user.role === 'admin' || req.user.id === resourceUserId)) {
       next();
     } else {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Acesso negado: você só pode acessar seus próprios recursos' 
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado: você só pode acessar seus próprios recursos'
       });
     }
   };
@@ -140,10 +137,10 @@ const requireOwnerOrAdmin = (userIdParam = 'userId') => {
 // Função para gerar access token (1 dia)
 const generateAccessToken = (user) => {
   return jwt.sign(
-    { 
+    {
       userId: user.id,
       email: user.email,
-      role: user.role 
+      role: user.role
     },
     JWT_SECRET,
     { expiresIn: '1d' }
@@ -161,8 +158,8 @@ const loginUser = async (user) => {
   const refreshToken = generateRefreshToken();
 
   // Salvar refresh token no banco
-  await User.findByIdAndUpdate(user._id, { 
-    refreshToken: refreshToken 
+  await User.findByIdAndUpdate(user._id, {
+    refreshToken: refreshToken
   });
 
   return {
@@ -181,7 +178,7 @@ const loginUser = async (user) => {
 const refreshToken = async (refreshTokenValue) => {
   try {
     // Buscar usuário pelo refresh token
-    const user = await User.findOne({ 
+    const user = await User.findOne({
       refreshToken: refreshTokenValue,
       deleted: { $ne: true }
     }).select('-password');
@@ -192,11 +189,11 @@ const refreshToken = async (refreshTokenValue) => {
 
     // Gerar novo access token
     const newAccessToken = generateAccessToken(user);
-    
+
     // Opcionalmente, gerar novo refresh token para maior segurança
     const newRefreshToken = generateRefreshToken();
-    await User.findByIdAndUpdate(user._id, { 
-      refreshToken: newRefreshToken 
+    await User.findByIdAndUpdate(user._id, {
+      refreshToken: newRefreshToken
     });
 
     return {
@@ -209,37 +206,48 @@ const refreshToken = async (refreshTokenValue) => {
         role: user.role
       }
     };
-
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Erro ao renovar token');
   }
 };
 
 // Função para logout (revogar refresh token)
 const logoutUser = async (userId) => {
-  await User.findOneAndUpdate(
-    { id: userId }, 
-    { refreshToken: null }
-  );
+  await User.findOneAndUpdate({ id: userId }, { refreshToken: null });
 };
 
 // Função para verificar token sem middleware (útil para casos específicos)
 const verifyToken = (token) => {
   try {
     return jwt.verify(token, JWT_SECRET);
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 };
 
-export { 
-  requireLogin, 
-  requireAdmin, 
-  requireOwnerOrAdmin, 
-  generateAccessToken, 
-  generateRefreshToken, 
-  loginUser, 
-  logoutUser, 
-  verifyToken, 
-  refreshToken 
+export {
+  requireLogin,
+  requireAdmin,
+  requireOwnerOrAdmin,
+  generateAccessToken,
+  generateRefreshToken,
+  loginUser,
+  logoutUser,
+  verifyToken,
+  refreshToken
+};
+
+export const hashPassword = async (password) => {
+  const SALT_ROUNDS = 10;
+  if (!password) {
+    throw new Error('Password is required.');
+  }
+  return await bcrypt.hash(password, SALT_ROUNDS);
+};
+
+export const comparePassword = async (password, hash) => {
+  if (!(password && hash)) {
+    throw new Error('Password and hash are required.');
+  }
+  return await bcrypt.compare(password, hash);
 };

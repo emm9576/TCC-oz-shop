@@ -15,7 +15,7 @@ const CallToActionSection = () => {
           <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-gray-100">
             <Link to="/produtos">Explorar Produtos</Link>
           </Button>
-          <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary">
+          <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-gray-100">
             <Link to="/cadastro">Criar uma Conta</Link>
           </Button>
         </div>
