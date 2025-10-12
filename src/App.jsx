@@ -15,6 +15,7 @@ import RegisterPage from '@/pages/RegisterPage';
 import ProfilePage from '@/pages/ProfilePage';
 import UserProfilePage from '@/pages/UserProfilePage';
 import SellPage from '@/pages/SellPage';
+import TermsPage from '@/pages/TermsPage';
 
 import { CartProvider } from '@/contexts/CartContext';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -40,6 +41,7 @@ function App() {
                   <Route path="/perfil" element={<ProfilePage />} />
                   <Route path="/perfil/:id" element={<UserProfilePage />} />
                   <Route path="/vender" element={<SellPage />} />
+                  <Route path="/termos" element={<TermsPage />} />
                 </Routes>
               </main>
               <Footer />

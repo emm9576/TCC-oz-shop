@@ -124,20 +124,20 @@ const Footer = () => {
             <div className="mt-4 md:mt-0">
               <ul className="flex space-x-6">
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    to="/termos"
                     className="text-gray-400 hover:text-primary text-sm transition-colors"
                   >
                     Termos de Uso
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    to="/termos"
                     className="text-gray-400 hover:text-primary text-sm transition-colors"
                   >
                     Política de Privacidade
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>
