@@ -8,9 +8,10 @@ const router = express.Router();
 // GET - Buscar todos os produtos
 router.get('/', async (req, res) => {
   try {
-    const { category, seller, userId, minPrice, maxPrice, page = 1, limit = 10 } = req.query;
+    const { category, seller, userId, minPrice, maxPrice } = req.query;
 
     const filter = {};
+    filter.deleted = { $ne: true };
     if (category) filter.category = new RegExp(category, 'i');
     if (seller) filter.seller = new RegExp(seller, 'i');
     if (userId) {
@@ -27,21 +28,11 @@ router.get('/', async (req, res) => {
 
     const produtos = await Produto.find(filter)
       .populate('userId', 'id name email')
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
       .sort({ createdAt: -1 });
-
-    const total = await Produto.countDocuments(filter);
 
     res.json({
       success: true,
-      data: produtos,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      data: produtos
     });
   } catch (error) {
     res

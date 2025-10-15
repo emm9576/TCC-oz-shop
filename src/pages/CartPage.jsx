@@ -118,7 +118,7 @@ const CartPage = () => {
                   >
                     <div className="sm:w-24 h-24 flex-shrink-0 mb-4 sm:mb-0">
                       <img 
-                        src={item.image} 
+                        src={item.imageMain} 
                         alt={item.name}
                         className="w-full h-full object-contain"
                       />
