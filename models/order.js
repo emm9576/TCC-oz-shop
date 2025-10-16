@@ -37,6 +37,29 @@ const OrderSchema = new mongoose.Schema({
         default: Date.now 
     },
 
+    // Campos para sistema de pagamento
+    paymentMethod: {
+        type: String,
+        enum: ['pix', 'cartao', 'boleto'],
+        required: true
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'approved', 'failed', 'expired'],
+        default: 'pending'
+    },
+    paymentDetails: {
+        // Apenas para PIX
+        pixCode: {
+            type: String,
+            sparse: true,
+            index: true
+        },
+        pixExpiresAt: {
+            type: Date
+        }
+    },
+
     // flag de soft delete
     deleted: { type: Boolean, default: false }
 }, {

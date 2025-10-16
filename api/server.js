@@ -9,6 +9,7 @@ import { requireLogin } from './middlewares/auth.js';
 // Importar rotas
 import accountRoute from './routes/account.js';
 import buyRoute from './routes/buy.js';
+import checkoutRoute from './routes/checkout.js';
 import ordersRoute from './routes/orders.js';
 import produtosRoute from './routes/produtos.js';
 import uploadRoute from './routes/upload.js';
@@ -37,10 +38,11 @@ mongoose
 // Usar as rotas
 app.use('/api/account', accountRoute);
 app.use('/api/buy', buyRoute);
+app.use('/api/checkout', checkoutRoute);
 app.use('/api/orders', requireLogin, ordersRoute);
 app.use('/api/produtos', produtosRoute);
-app.use('/api/upload', uploadRoute); // Nova rota de upload
-app.use('/api/users', requireLogin, usersRoutes); // Rotas only admin
+app.use('/api/upload', uploadRoute);
+app.use('/api/users', requireLogin, usersRoutes);
 
 // Health Check - Rota para verificar se o servidor está funcionando
 app.get('/api/health', (req, res) => {
@@ -81,6 +83,7 @@ app.get('/', (req, res) => {
     endpoints: {
       account: '/api/account',
       buy: '/api/buy',
+      checkout: '/api/checkout',
       orders: '/api/orders',
       produtos: '/api/produtos',
       upload: '/api/upload',
