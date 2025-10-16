@@ -33,9 +33,8 @@ const ProductDetailPage = () => {
     const [selectedImage, setSelectedImage] = useState(0)
     const [quantity, setQuantity] = useState(1)
     const [addingToCart, setAddingToCart] = useState(false)
-    const [buying, setBuying] = useState(false)
 
-    const { addToCart, buyProduct, isInCart, getItemQuantity } = useCart()
+    const { addToCart, isInCart, getItemQuantity } = useCart()
     const { user, isAuthenticated } = useAuth()
     const { fetchProductById } = useProducts()
     const { toast } = useToast()
@@ -97,7 +96,7 @@ const ProductDetailPage = () => {
         }
     }
 
-    const handleBuyNow = async () => {
+    const handleBuyNow = () => {
         if (!product) return
 
         if (!isAuthenticated) {
@@ -111,18 +110,7 @@ const ProductDetailPage = () => {
             return
         }
 
-        setBuying(true)
-        try {
-            const result = await buyProduct(product.id, quantity)
-
-            if (result.success) {
-                navigate("/perfil?tab=pedidos")
-            }
-        } catch (error) {
-            console.error("Erro na compra:", error)
-        } finally {
-            setBuying(false)
-        }
+        navigate(`/checkout/${product.id}`, { state: { quantity } })
     }
 
     const handleQuantityChange = (change) => {
@@ -365,16 +353,9 @@ const ProductDetailPage = () => {
                                 onClick={handleBuyNow}
                                 className="w-full"
                                 size="lg"
-                                disabled={product.stock === 0 || buying}
+                                disabled={product.stock === 0}
                             >
-                                {buying ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Processando...
-                                    </>
-                                ) : (
-                                    "Comprar Agora"
-                                )}
+                                Comprar Agora
                             </Button>
 
                             <Button

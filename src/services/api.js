@@ -261,6 +261,53 @@ class ApiService {
   }
 
   // ========================
+  // CHECKOUT ROUTES
+  // ========================
+
+  // Checkout com PIX
+  async checkoutPix(productId, quantity = 1) {
+    return this.request(`/checkout/pix/${productId}`, {
+      method: 'POST',
+      body: JSON.stringify({ quantity }),
+      requireAuth: true,
+    });
+  }
+
+  // Confirmar pagamento PIX (publico - sem autenticacao)
+  async confirmPixPayment(pixCode) {
+    return this.request(`/checkout/pix/confirm/${pixCode}`, {
+      method: 'POST',
+      requireAuth: false,
+    });
+  }
+
+  // Verificar status do pagamento PIX (publico - sem autenticacao)
+  async checkPixStatus(pixCode) {
+    return this.request(`/checkout/pix/status/${pixCode}`, {
+      method: 'GET',
+      requireAuth: false,
+    });
+  }
+
+  // Checkout com Cartao
+  async checkoutCartao(productId, cardData) {
+    return this.request(`/checkout/cartao/${productId}`, {
+      method: 'POST',
+      body: JSON.stringify(cardData),
+      requireAuth: true,
+    });
+  }
+
+  // Checkout com Boleto
+  async checkoutBoleto(productId, quantity = 1) {
+    return this.request(`/checkout/boleto/${productId}`, {
+      method: 'POST',
+      body: JSON.stringify({ quantity }),
+      requireAuth: true,
+    });
+  }
+
+  // ========================
   // ORDERS ROUTES
   // ========================
 

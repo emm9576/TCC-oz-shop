@@ -16,6 +16,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import UserProfilePage from '@/pages/UserProfilePage';
 import SellPage from '@/pages/SellPage';
 import CheckoutPage from '@/pages/CheckoutPage';
+import PixConfirmPage from '@/pages/PixConfirmPage';
 import TermsPage from '@/pages/TermsPage';
 
 import { CartProvider } from '@/contexts/CartContext';
@@ -43,6 +44,7 @@ function App() {
                   <Route path="/perfil/:id" element={<UserProfilePage />} />
                   <Route path="/vender" element={<SellPage />} />
                   <Route path="/checkout/:id" element={<CheckoutPage />} />
+                  <Route path="/checkout/pix/confirm" element={<PixConfirmPage />} />
                   <Route path="/termos" element={<TermsPage />} />
                 </Routes>
               </main>
