@@ -263,7 +263,7 @@ const CheckoutPage = () => {
         });
         
         setTimeout(() => {
-          navigate('/profile?tab=orders');
+          navigate('/perfil?tab=orders');
         }, 2000);
       }
     } catch (error) {
@@ -295,7 +295,7 @@ const CheckoutPage = () => {
         });
         
         setTimeout(() => {
-          navigate('/profile?tab=orders');
+          navigate('/perfil?tab=orders');
         }, 2000);
       }
     } catch (error) {
@@ -363,7 +363,7 @@ const CheckoutPage = () => {
           <p className="text-gray-600 mb-6">
             Seu pedido foi confirmado com sucesso e será processado em breve.
           </p>
-          <Button onClick={() => navigate('/profile?tab=orders')}>
+          <Button onClick={() => navigate('/perfil?tab=orders')}>
             Ver meus pedidos
           </Button>
         </motion.div>

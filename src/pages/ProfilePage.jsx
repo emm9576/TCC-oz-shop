@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -12,6 +12,7 @@ const ProfilePage = () => {
   const { user, updateProfile, logout, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [profileData, setProfileData] = useState({
     name: '',
@@ -39,6 +40,33 @@ const ProfilePage = () => {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [orders, setOrders] = useState([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+
+  // Obter a tab ativa da URL
+  const getActiveTab = () => {
+    const tab = searchParams.get('tab');
+    if (tab === 'orders') return 'orders';
+    if (tab === 'products') return 'selling';
+    return 'profile';
+  };
+
+  const [activeTab, setActiveTab] = useState(getActiveTab());
+
+  // Atualizar a tab quando a URL mudar
+  useEffect(() => {
+    setActiveTab(getActiveTab());
+  }, [searchParams]);
+
+  // Função para mudar a tab e atualizar a URL
+  const handleTabChange = (value) => {
+    setActiveTab(value);
+    if (value === 'profile') {
+      setSearchParams({});
+    } else if (value === 'orders') {
+      setSearchParams({ tab: 'orders' });
+    } else if (value === 'selling') {
+      setSearchParams({ tab: 'products' });
+    }
+  };
   
   // Redirecionar se não estiver autenticado
   useEffect(() => {
@@ -277,7 +305,7 @@ const ProfilePage = () => {
   };
 
   const handleEditProduct = (productId) => {
-    navigate(`/vender?edit=${productId}`);
+    navigate(`/produto/${productId}/edit`);
   };
 
   const handleViewOrder = (order) => {
@@ -338,7 +366,7 @@ const ProfilePage = () => {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Meu Perfil</h1>
       
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-8">
           <TabsTrigger value="profile">Perfil</TabsTrigger>
           <TabsTrigger value="orders">Meus Pedidos</TabsTrigger>

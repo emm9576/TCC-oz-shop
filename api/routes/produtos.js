@@ -45,10 +45,21 @@ router.get('/', async (req, res) => {
 // GET - Buscar produtos do usuário logado
 router.get('/my-products', requireLogin, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userIdString = req.user.id;
 
-    // Buscar produtos onde o sellerId é o ID do usuário logado
-    const produtos = await Produto.find({ sellerId: userId }).sort({ createdAt: -1 });
+    // Buscar o usuário para obter o ObjectId
+    const user = await User.findOne({ id: userIdString });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
+
+    // Buscar produtos onde o userId (ObjectId) corresponde ao usuário logado e não estão deletados
+    const produtos = await Produto.find({ 
+      userId: user._id,
+      deleted: { $ne: true }
+    })
+      .populate('userId', 'id name email')
+      .sort({ createdAt: -1 });
 
     res.json({
       success: true,
