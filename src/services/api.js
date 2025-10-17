@@ -227,6 +227,10 @@ class ApiService {
     });
   }
 
+  async getTotalProductsCount() {
+    return this.request('/produtos/count', { requireAuth: false });
+  }
+
   // ========================
   // UPLOAD ROUTES
   // ========================

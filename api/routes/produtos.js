@@ -8,12 +8,13 @@ const router = express.Router();
 // GET - Buscar todos os produtos
 router.get('/', async (req, res) => {
   try {
-    const { category, seller, userId, minPrice, maxPrice } = req.query;
+    const { category, seller, userId, minPrice, maxPrice, search } = req.query;
 
     const filter = {};
     filter.deleted = { $ne: true };
     if (category) filter.category = new RegExp(category, 'i');
     if (seller) filter.seller = new RegExp(seller, 'i');
+    if (search) filter.name = new RegExp(search, 'i');
     if (userId) {
       const user = await User.findOne({ id: userId });
       if (user) {
@@ -63,6 +64,26 @@ router.get('/my-products', requireLogin, async (req, res) => {
     });
   }
 });
+
+// GET - Obter quantidade total de produtos (excluindo deletados)
+router.get('/count', async (req, res) => {
+  try {
+    const count = await Produto.countDocuments({ deleted: { $ne: true } });
+    res.json({
+      success: true,
+      data: {
+        total: count
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao contar produtos',
+      error: error.message
+    });
+  }
+});
+
 
 // GET - Buscar produto por ID
 router.get('/:id', async (req, res) => {

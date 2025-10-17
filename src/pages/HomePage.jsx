@@ -11,21 +11,42 @@ import {
   Sparkles,
   Truck,
 } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { categories, products } from '@/data/products';
+import apiService from '@/services/api';
 
 const HomePage = () => {
-  // Pegar apenas os primeiros 4 produtos para exibir na seção de destaque
-  const featuredProducts = products.slice(0, 4);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Pegar produtos com desconto para a seção de ofertas
-  const discountedProducts = products
-    .filter((product) => product.discount > 0)
-    .sort((a, b) => b.discount - a.discount)
-    .slice(0, 4);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const countResponse = await apiService.getTotalProductsCount();
+        if (countResponse.success) {
+          setTotalProducts(countResponse.data.total);
+        }
+
+        const productsResponse = await apiService.getProducts();
+        if (productsResponse.success) {
+          setFeaturedProducts(productsResponse.data.slice(0, 4));
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+        setFeaturedProducts(products.slice(0, 4));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+
 
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -111,7 +132,9 @@ const HomePage = () => {
                       <ShoppingBag className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <p className="font-bold">+10.000 produtos</p>
+                      <p className="font-bold">
+                        {loading ? 'Carregando...' : `+${totalProducts.toLocaleString('pt-BR')} produtos`}
+                      </p>
                       <p className="text-sm text-gray-500">Disponíveis para você</p>
                     </div>
                   </div>
@@ -169,11 +192,17 @@ const HomePage = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Carregando produtos...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -214,25 +243,6 @@ const HomePage = () => {
                 src="https://images.unsplash.com/photo-1632065509860-4fbcfc89ed7c"
               />
             </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Ofertas Especiais */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold">Ofertas Especiais</h2>
-            <Link to="/produtos" className="text-primary hover:underline flex items-center">
-              Ver todas as ofertas
-              <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {discountedProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
           </div>
         </div>
       </section>
